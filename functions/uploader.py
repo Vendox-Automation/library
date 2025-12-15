@@ -2,7 +2,7 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 
 class GoogleSheetUploader:
     """
@@ -38,31 +38,80 @@ class GoogleSheetUploader:
 
     # --- MODIFIED/NEW HELPER METHOD ---
     # Renamed the old method to reflect its new, cleaner role
-    def _prepare_data_for_gspread(self, df: pd.DataFrame) -> List[List[Any]]:
-        """Converts a Pandas DataFrame into the list-of-lists format required by gspread."""
+    def _prepare_data_for_gspread(self, 
+                                    df: pd.DataFrame, 
+                                    include_header: bool = True) -> List[List[Any]]: # <-- NEW PARAMETER
+        """
+        Converts a Pandas DataFrame into the list-of-lists format required by gspread.
+        """
         
-        # 1. Convert any NaN values to empty strings for GSheets compatibility
-        # (This is a safety measure, though the filter should ideally handle it)
         df = df.fillna('')
-        
-        # 2. Get the header row (list of column names)
-        header = [str(col) for col in df.columns.tolist()]
-        
-        # 3. Get the data rows (list of lists)
         data_rows = df.values.tolist()
         
-        # Combine header and data
-        prepared_data = [header] + data_rows
-        
-        print(f"Data prepared for upload. Total rows (incl. header): {len(prepared_data)}")
+        if include_header:
+            # Get the header row and prepend it
+            header = [str(col) for col in df.columns.tolist()]
+            prepared_data = [header] + data_rows
+            print(f"Data prepared with header. Total rows: {len(prepared_data)}")
+        else:
+            # Only return the data rows
+            prepared_data = data_rows
+            print(f"Data prepared without header. Total rows: {len(prepared_data)}")
+            
         return prepared_data
+
+    # --- New Helper Function: Maps the DataFrame to the GSheet Layout ---
+    def _format_dataframe_to_gsheet_layout(self, 
+                                            df: pd.DataFrame, 
+                                            layout_map: Dict[str, Union[str, None]]) -> pd.DataFrame:
+        """
+        Creates a new DataFrame structure where columns are ordered and spaced
+        according to the layout_map.
+        
+        Args:
+            df: The cleaned source DataFrame.
+            layout_map: A dict mapping GSheet column letters (A, B, C) to 
+                        DataFrame column names (or None for a gap).
+                        
+        Returns:
+            A new DataFrame with columns named by their GSheet column letters (A, B, C...).
+        """
+        print("-> Formatting DataFrame to Google Sheet Layout...")
+        
+        # 1. Sort the layout map by GSheet column letter (A, B, C, ...)
+        sorted_layout = sorted(layout_map.items(), key=lambda item: item[0])
+        
+        # 2. Create the new, structured DataFrame
+        formatted_data = {}
+        
+        # 3. Populate the new data structure column by column
+        for gsheet_col, df_col_name in sorted_layout:
+            if df_col_name is None:
+                # Create a gap column: Fill all rows with empty strings
+                formatted_data[gsheet_col] = [''] * len(df)
+            elif df_col_name in df.columns:
+                # Map the clean DF column data
+                # Ensure data is converted to list/array format for insertion
+                formatted_data[gsheet_col] = df[df_col_name].tolist() 
+            else:
+                print(f"-> Warning: DF column '{df_col_name}' not found. Creating empty column for GSheet '{gsheet_col}'.")
+                formatted_data[gsheet_col] = [''] * len(df)
+                
+        # Create the final DataFrame from the structured data
+        formatted_df = pd.DataFrame(formatted_data)
+        
+        print(f"-> Layout formatted from {len(df.columns)} columns to {len(formatted_df.columns)} GSheet columns.")
+        return formatted_df
 
     # --- NEW PRIMARY UPLOAD METHOD ---
     def upload_dataframe_to_sheet(self, 
-                                  dataframe: pd.DataFrame, 
-                                  spreadsheet_name: str, 
-                                  worksheet_name: str = "Sheet1",
-                                  clear_before_upload: bool = True):
+                                dataframe: pd.DataFrame, 
+                                spreadsheet_name: str, 
+                                worksheet_name: str = "Sheet1",
+                                clear_before_upload: bool = True,
+                                upload_start_cell: str = "A1", # Handles Scenario B
+                                include_header: bool = True,
+                                gsheet_layout_map: Dict[str, Union[str, None]] = None): # Handles Scenario C
         """
         The main method to upload a cleaned Pandas DataFrame.
 
@@ -72,9 +121,17 @@ class GoogleSheetUploader:
             worksheet_name: The specific tab name. Defaults to 'Sheet1'.
             clear_before_upload: If True, clears the sheet contents before uploading.
         """
+
+        # 0. Check if a layout map was provided and apply it
+        if gsheet_layout_map:
+            dataframe = self._format_dataframe_to_gsheet_layout(dataframe, gsheet_layout_map)
+        
         try:
-            # 1. Prepare the data from the DataFrame
-            data_to_upload = self._prepare_data_for_gspread(dataframe)
+        # 1. Prepare the data: PASS THE NEW FLAG
+            data_to_upload = self._prepare_data_for_gspread(
+                dataframe, 
+                include_header=include_header 
+            )
             
             # 2. Open the specified Google Spreadsheet
             print(f"Connecting to Google Sheet: '{spreadsheet_name}'...")
@@ -89,9 +146,8 @@ class GoogleSheetUploader:
                 worksheet.clear()
             
             # 5. Upload the new data!
-            print("Uploading data to Google Sheets...")
-            # gspread's update method is efficient for large bulk uploads
-            worksheet.update('A1', data_to_upload)
+            print(f"Uploading data to Google Sheets starting at cell: {upload_start_cell}")
+            worksheet.update(upload_start_cell, data_to_upload)
             
             print("✨ Upload complete!")
             print(f"Data uploaded to: {spreadsheet.url}")
