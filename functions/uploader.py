@@ -105,13 +105,13 @@ class GoogleSheetUploader:
 
     # --- NEW PRIMARY UPLOAD METHOD ---
     def upload_dataframe_to_sheet(self, 
-                                dataframe: pd.DataFrame, 
-                                spreadsheet_name: str, 
-                                worksheet_name: str = "Sheet1",
-                                clear_before_upload: bool = True,
-                                upload_start_cell: str = "A1", # Handles Scenario B
-                                include_header: bool = True,
-                                gsheet_layout_map: Dict[str, Union[str, None]] = None): # Handles Scenario C
+                                  dataframe: pd.DataFrame, 
+                                  spreadsheet_id: str,
+                                  worksheet_name: str = "Sheet1",
+                                  clear_before_upload: bool = True,
+                                  upload_start_cell: str = "A1", 
+                                  include_header: bool = True,
+                                  gsheet_layout_map: Dict[str, Union[str, None]] = None):
         """
         The main method to upload a cleaned Pandas DataFrame.
 
@@ -127,38 +127,65 @@ class GoogleSheetUploader:
             dataframe = self._format_dataframe_to_gsheet_layout(dataframe, gsheet_layout_map)
         
         try:
-        # 1. Prepare the data: PASS THE NEW FLAG
+            # 1. Connect to Spreadsheet
+            spreadsheet = self.client.open_by_key(spreadsheet_id)
+            worksheet = spreadsheet.worksheet(worksheet_name)
+
+            # 2. DYNAMIC LOGIC: Handle the "APPEND" option
+            start_cell = upload_start_cell # default
+            
+            if upload_start_cell.upper() == "APPEND":
+                # Get all existing values to find the end of the data
+                existing_data = worksheet.get_all_values()
+                next_row = len(existing_data) + 1
+                start_cell = f"A{next_row}"
+                print(f"-> Append mode active. Continuing from row: {next_row}")
+                
+                # Force include_header to False if we are appending to existing data
+                if next_row > 1:
+                    include_header = False
+                    print("-> Data already exists. Skipping header for append.")
+
+            # 3. Prepare Data
             data_to_upload = self._prepare_data_for_gspread(
                 dataframe, 
                 include_header=include_header 
             )
-            
-            # 2. Open the specified Google Spreadsheet
-            print(f"Connecting to Google Sheet: '{spreadsheet_name}'...")
-            spreadsheet = self.client.open(spreadsheet_name)
-            
-            # 3. Open the specified Worksheet (tab)
-            worksheet = spreadsheet.worksheet(worksheet_name)
-            
-            # 4. Clear existing data (if requested)
-            if clear_before_upload:
-                print(f"Clearing existing data from worksheet: '{worksheet_name}'...")
+
+            # 4. Clear (only if NOT appending and requested)
+            if clear_before_upload and upload_start_cell.upper() != "APPEND":
+                print(f"Clearing worksheet: '{worksheet_name}'...")
                 worksheet.clear()
-            
-            # 5. Upload the new data!
-            print(f"Uploading data to Google Sheets starting at cell: {upload_start_cell}")
-            worksheet.update(upload_start_cell, data_to_upload)
+
+            # 5. Upload
+            print(f"Uploading to {worksheet_name} at {start_cell}...")
+            worksheet.update(start_cell, data_to_upload)
             
             print("✨ Upload complete!")
             print(f"Data uploaded to: {spreadsheet.url}")
 
         except gspread.WorksheetNotFound:
-            print(f"Error: Worksheet '{worksheet_name}' not found in '{spreadsheet_name}'.")
+            print(f"Error: Worksheet '{worksheet_name}' not found in '{spreadsheet_id}'.")
         except gspread.SpreadsheetNotFound:
-            print(f"Error: Spreadsheet '{spreadsheet_name}' not found. Check name and Service Account permissions.")
+            print(f"Error: Spreadsheet '{spreadsheet_id}' not found. Check name and Service Account permissions.")
         except Exception as e:
             print(f"An unexpected error occurred during the upload process: {e}")
 
+    def get_next_available_row(self, spreadsheet_id: str, worksheet_name: str) -> int:
+        """
+        Finds the next empty row in the worksheet to avoid overwriting data.
+        """
+        spreadsheet = self.client.open_by_key(spreadsheet_id)
+        worksheet = spreadsheet.worksheet(worksheet_name)
+        
+        # worksheet.get_all_values() returns a list of lists. 
+        # The length of this list tells us how many rows currently have data.
+        existing_data = worksheet.get_all_values()
+        next_row = len(existing_data) + 1
+        
+        print(f"-> Next available row in '{worksheet_name}' is: {next_row}")
+        return next_row
+    
     # --- LEGACY/WRAPPER METHOD (OPTIONAL) ---
     # The old method now reads the CSV and calls the new primary method.
     def upload_csv_to_sheet(self, *args, **kwargs):
