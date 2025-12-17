@@ -132,8 +132,14 @@ class CSVFilter:
                     series = self.df[column].astype(str)
                     # na=False ensures null/NaN values are not included in the match
                     temp_mask = series.str.contains(search_string, case=False, na=False)
+                
+                # --- B. Handling EXACT operator ---
+                elif isinstance(single_criterion, str) and single_criterion.upper().startswith('EXACT:'):
+                    exact_value = single_criterion[len('EXACT:'):].strip()
+                    # We compare against the string version of the column
+                    temp_mask = (self.df[column].astype(str) == exact_value)
                     
-                # --- B. Handling comparison operators (>, <, etc.) ---
+                # --- C. Handling comparison operators (>, <, etc.) ---
                 elif isinstance(single_criterion, str) and any(op in single_criterion for op in ['>', '<', '>=', '<=']):
                     op = single_criterion[0:2] if single_criterion[1] == '=' else single_criterion[0]
                     value = single_criterion[len(op):].strip()
@@ -153,11 +159,11 @@ class CSVFilter:
                         print(f"-> Warning: Unsupported operator '{op}' for column '{column}'. Skipping criterion.")
                         continue # Skip to next criterion
 
-                # --- C. Handling standard list/IN clause ---
+                # --- D. Handling standard list/IN clause ---
                 elif isinstance(single_criterion, (list, tuple)):
                     temp_mask = self.df[column].isin(single_criterion)
 
-                # --- D. Handling exact string/value match ---
+                # --- E. Handling exact string/value match ---
                 else:
                     temp_mask = (self.df[column] == single_criterion)
                     
