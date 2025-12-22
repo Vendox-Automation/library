@@ -2,6 +2,7 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
+import re 
 from typing import List, Dict, Any, Union
 
 class GoogleSheetUploader:
@@ -19,7 +20,6 @@ class GoogleSheetUploader:
     def __init__(self, credentials_file_path: str):
         """
         Initializes the uploader by authenticating with Google.
-
         Args:
             credentials_file_path: The path to the Service Account JSON key file.
         """
@@ -36,11 +36,10 @@ class GoogleSheetUploader:
         print("Authentication successful.")
 
 
-    # --- MODIFIED/NEW HELPER METHOD ---
-    # Renamed the old method to reflect its new, cleaner role
+    # --- HELPER METHOD ---
     def _prepare_data_for_gspread(self, 
                                     df: pd.DataFrame, 
-                                    include_header: bool = True) -> List[List[Any]]: # <-- NEW PARAMETER
+                                    include_header: bool = True) -> List[List[Any]]:
         """
         Converts a Pandas DataFrame into the list-of-lists format required by gspread.
         """
@@ -52,15 +51,13 @@ class GoogleSheetUploader:
             # Get the header row and prepend it
             header = [str(col) for col in df.columns.tolist()]
             prepared_data = [header] + data_rows
-            print(f"Data prepared with header. Total rows: {len(prepared_data)}")
         else:
-            # Only return the data rows
             prepared_data = data_rows
-            print(f"Data prepared without header. Total rows: {len(prepared_data)}")
             
+        print(f"-> Data prepared. Total rows: {len(prepared_data)}")    
         return prepared_data
 
-    # --- New Helper Function: Maps the DataFrame to the GSheet Layout ---
+    # --- HELPER: FORMATTING ---
     def _format_dataframe_to_gsheet_layout(self, 
                                             df: pd.DataFrame, 
                                             layout_map: Dict[str, Union[str, None]]) -> pd.DataFrame:
@@ -78,32 +75,23 @@ class GoogleSheetUploader:
         """
         print("-> Formatting DataFrame to Google Sheet Layout...")
         
-        # 1. Sort the layout map by GSheet column letter (A, B, C, ...)
         sorted_layout = sorted(layout_map.items(), key=lambda item: item[0])
-        
-        # 2. Create the new, structured DataFrame
         formatted_data = {}
         
-        # 3. Populate the new data structure column by column
         for gsheet_col, df_col_name in sorted_layout:
             if df_col_name is None:
-                # Create a gap column: Fill all rows with empty strings
                 formatted_data[gsheet_col] = [''] * len(df)
             elif df_col_name in df.columns:
-                # Map the clean DF column data
-                # Ensure data is converted to list/array format for insertion
                 formatted_data[gsheet_col] = df[df_col_name].tolist() 
             else:
                 print(f"-> Warning: DF column '{df_col_name}' not found. Creating empty column for GSheet '{gsheet_col}'.")
                 formatted_data[gsheet_col] = [''] * len(df)
                 
-        # Create the final DataFrame from the structured data
         formatted_df = pd.DataFrame(formatted_data)
-        
         print(f"-> Layout formatted from {len(df.columns)} columns to {len(formatted_df.columns)} GSheet columns.")
         return formatted_df
 
-    # --- NEW PRIMARY UPLOAD METHOD ---
+    # --- PRIMARY UPLOAD METHOD (UPDATED WITH AUTO-RESIZE) ---
     def upload_dataframe_to_sheet(self, 
                                   dataframe: pd.DataFrame, 
                                   spreadsheet_id: str,
@@ -114,12 +102,16 @@ class GoogleSheetUploader:
                                   gsheet_layout_map: Dict[str, Union[str, None]] = None):
         """
         The main method to upload a cleaned Pandas DataFrame.
+        Includes automatic resizing of the sheet if data exceeds current grid limits.
 
         Args:
             dataframe: The Pandas DataFrame containing the data to upload.
             spreadsheet_name: The name of the Google Sheet.
             worksheet_name: The specific tab name. Defaults to 'Sheet1'.
             clear_before_upload: If True, clears the sheet contents before uploading.
+            upload_start_cell: The starting cell (e.g., "A1") or "APPEND" to add after existing data.
+            include_header: If True, includes the DataFrame's header row in the upload.
+            gsheet_layout_map: If there is a specific layout mapping for GSheet columns then follow it, else upload as-is.
         """
 
         # 0. Check if a layout map was provided and apply it
@@ -131,26 +123,53 @@ class GoogleSheetUploader:
             spreadsheet = self.client.open_by_key(spreadsheet_id)
             worksheet = spreadsheet.worksheet(worksheet_name)
 
-            # 2. DYNAMIC LOGIC: Handle the "APPEND" option
+            # 2. DYNAMIC LOGIC: Determine Start Cell and Row Index
             start_cell = upload_start_cell # default
+            start_row_int = 1 # default integer row for calculation
             
             if upload_start_cell.upper() == "APPEND":
                 # Get all existing values to find the end of the data
                 existing_data = worksheet.get_all_values()
                 next_row = len(existing_data) + 1
                 start_cell = f"A{next_row}"
-                print(f"-> Append mode active. Continuing from row: {next_row}")
+                start_row_int = next_row # Capture this for the math below
+                print(f"-> Append mode active. Target cell: {start_cell}")
                 
                 # Force include_header to False if we are appending to existing data
                 if next_row > 1:
                     include_header = False
                     print("-> Data already exists. Skipping header for append.")
+            else:
+                # Parse the row number from standard cell strings like "A1", "C50"
+                match = re.search(r"(\d+)", start_cell)
+                if match:
+                    start_row_int = int(match.group(1))
 
             # 3. Prepare Data
             data_to_upload = self._prepare_data_for_gspread(
                 dataframe, 
                 include_header=include_header 
             )
+
+            # --- NEW: AUTO-RESIZE LOGIC ---
+            # Calculate how much space we need vs what we have
+            num_rows_to_upload = len(data_to_upload)
+            required_total_rows = start_row_int + num_rows_to_upload
+            
+            # Check Rows
+            current_sheet_rows = worksheet.row_count
+            if required_total_rows > current_sheet_rows:
+                rows_to_add = required_total_rows - current_sheet_rows + 500 # Add buffer
+                print(f"📉 Resizing sheet: Adding {rows_to_add} rows (Current: {current_sheet_rows} -> New Total: {current_sheet_rows + rows_to_add})")
+                worksheet.add_rows(rows_to_add)
+
+            # Check Columns (Basic check based on dataframe width)
+            current_sheet_cols = worksheet.col_count
+            required_cols = len(dataframe.columns)
+            if required_cols > current_sheet_cols:
+                print(f"↔️ Resizing sheet: Extending columns to {required_cols}")
+                worksheet.resize(rows=worksheet.row_count, cols=required_cols)
+            # -----------------------------
 
             # 4. Clear (only if NOT appending and requested)
             if clear_before_upload and upload_start_cell.upper() != "APPEND":
@@ -170,33 +189,3 @@ class GoogleSheetUploader:
             print(f"Error: Spreadsheet '{spreadsheet_id}' not found. Check name and Service Account permissions.")
         except Exception as e:
             print(f"An unexpected error occurred during the upload process: {e}")
-
-    def get_next_available_row(self, spreadsheet_id: str, worksheet_name: str) -> int:
-        """
-        Finds the next empty row in the worksheet to avoid overwriting data.
-        """
-        spreadsheet = self.client.open_by_key(spreadsheet_id)
-        worksheet = spreadsheet.worksheet(worksheet_name)
-        
-        # worksheet.get_all_values() returns a list of lists. 
-        # The length of this list tells us how many rows currently have data.
-        existing_data = worksheet.get_all_values()
-        next_row = len(existing_data) + 1
-        
-        print(f"-> Next available row in '{worksheet_name}' is: {next_row}")
-        return next_row
-    
-    # --- LEGACY/WRAPPER METHOD (OPTIONAL) ---
-    # The old method now reads the CSV and calls the new primary method.
-    def upload_csv_to_sheet(self, *args, **kwargs):
-        """
-        [DEPRECATED/LEGACY]: Uploads a CSV by first reading it into a DataFrame.
-        It is recommended to use CSVFilter and upload_dataframe_to_sheet instead.
-        """
-        print("Warning: Using legacy 'upload_csv_to_sheet'. For complex pipelines, use CSVFilter first.")
-        
-        csv_file_path = kwargs.pop('csv_file_path')
-        df = pd.read_csv(csv_file_path).fillna('') # Basic reading
-        
-        # Re-map the function arguments
-        self.upload_dataframe_to_sheet(dataframe=df, **kwargs)
