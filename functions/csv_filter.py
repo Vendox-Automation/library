@@ -7,20 +7,29 @@ class CSVFilter:
     A reusable, sequence-configurable module for cleaning and transforming CSV data.
     """
 
-    def __init__(self, csv_file_path: str):
+    def __init__(self, input_source):
         """
-        Initializes the filter by loading the CSV data into a Pandas DataFrame.
+        input_source: Can be a string (file path) or a pd.DataFrame.
         """
-        print(f"Loading data from: {csv_file_path}")
-        try:
-            self.df = pd.read_csv(csv_file_path, low_memory=False)
-            self.initial_rows = len(self.df)
-            print(f"Initial row count: {self.initial_rows}")
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Input CSV file not found at: {csv_file_path}")
-        except Exception as e:
-            print(f"Error loading CSV: {e}")
-            raise
+        if isinstance(input_source, pd.DataFrame):
+            # Scenario A: Initializing directly from an in-memory DataFrame
+            print("🚀 Initializing CSVFilter with provided DataFrame.")
+            self.df = input_source
+        elif isinstance(input_source, str):
+            # Scenario B: Initializing from a local CSV file path
+            print(f"📂 Loading data from path: {input_source}")
+            try:
+                self.df = pd.read_csv(input_source, low_memory=False)
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Input CSV file not found at: {input_source}")
+            except Exception as e:
+                print(f"Error loading CSV: {e}")
+                raise
+        else:
+            raise TypeError("Input must be either a file path (string) or a Pandas DataFrame.")
+
+        # Common initialization logic
+        self.initial_rows = len(self.df)
             
     # --- PRIVATE HELPER METHODS FOR EACH OPERATION ---
     def _apply_renames(self, rename_map: Dict[str, str]):
@@ -186,8 +195,48 @@ class CSVFilter:
             print(f"-> Replacing NaN/Null values with: '{fill_na_value}'")
             self.df.fillna(fill_na_value, inplace=True)
 
-    # --- PRIMARY EXECUTION METHOD ---
+    def _apply_multiplier_math(self, math_rules: List[Dict[str, Any]]):
+        """
+        Applies conditional arithmetic. 
+        Example Rule: {'target': 'charge', 'source': 'amount', 'multiplier': 0.1, 'trigger_values': [0, None, '']}
+        Meaning: If 'charge' is 0 or Empty, set 'charge' = 'amount' * 0.1
+        """
+        print(f"-> Applying Conditional Math Rules: {math_rules}")
 
+        for rule in math_rules:
+            target = rule.get('target')
+            source = rule.get('source')
+            multiplier = rule.get('multiplier', 1.0)
+            triggers = rule.get('trigger_values', [0, None, ''])
+
+            if target not in self.df.columns or source not in self.df.columns:
+                print(f"Warning: Columns {target} or {source} not found. Skipping math rule.")
+                continue
+
+            # 1. Clean data to ensure we can do math
+            # Coerce source/target to numeric, errors='coerce' turns non-numbers to NaN
+            self.df[target] = pd.to_numeric(self.df[target], errors='coerce')
+            self.df[source] = pd.to_numeric(self.df[source], errors='coerce')
+
+            # 2. Build the Mask (Where should we apply the math?)
+            # We look for rows where the target column matches any of our "trigger values" (0, NaN, empty)
+            mask = pd.Series(False, index=self.df.index)
+            
+            for val in triggers:
+                if val is None or val == '':
+                    mask |= self.df[target].isna() # Catch NaNs
+                else:
+                    mask |= (self.df[target] == val) # Catch specific numbers like 0
+
+            # 3. Apply the Math
+            # For rows where 'mask' is True: Target = Source * Multiplier
+            # We use .loc to safely assign values
+            rows_affected = mask.sum()
+            if rows_affected > 0:
+                self.df.loc[mask, target] = self.df.loc[mask, source] * multiplier
+                print(f"   -> Updated {rows_affected} rows in '{target}' using '{source}' * {multiplier}") 
+
+    # --- PRIMARY EXECUTION METHOD ---
     def apply_filters(self, 
                       filter_rules: Dict[str, Any],
                       execution_order: List[str]) -> pd.DataFrame:
@@ -210,6 +259,7 @@ class CSVFilter:
             'drop_rows': (self._drop_rows_by_value, 'rows_to_remove_by_value'),
             'filter_rows': (self._apply_filtering_criteria, 'filter_criteria'),
             'handle_na': (self._handle_missing_values, 'fill_na_value'),
+            'conditional_math': (self._apply_multiplier_math, 'math_rules')
         }
 
         # Iterate through the requested order
