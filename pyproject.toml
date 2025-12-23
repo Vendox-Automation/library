@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vdx_auto_utils"
+version = "0.1.0" #Update the version everytime an update is finalized
+description = "Internal automation tools for Vendox"
+authors = [{name = "Potter", email = "potter@4896.co"}]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "gspread",
+    "google-api-python-client",
+    "google-auth",
+    "oauth2client"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
