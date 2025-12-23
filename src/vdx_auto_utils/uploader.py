@@ -178,7 +178,7 @@ class GoogleSheetUploader:
 
             # 5. Upload
             print(f"Uploading to {worksheet_name} at {start_cell}...")
-            worksheet.update(start_cell, data_to_upload)
+            worksheet.update(start_cell, data_to_upload, value_input_option='USER_ENTERED')
             
             print("✨ Upload complete!")
             print(f"Data uploaded to: {spreadsheet.url}")
