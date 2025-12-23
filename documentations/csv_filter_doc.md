@@ -1,19 +1,78 @@
 # CSVFilter Documentation
 
+## Table of Contents
+- [How to Use in Your Project](#how-to-use-in-your-project)
+  - [Quick Start Guide](#quick-start-guide)
+- [Overview](#overview)
+- [Class: CSVFilter](#class-csvfilter)
+  - [Initialization](#initialization)
+  - [Methods](#methods)
+    - [apply_filters](#apply_filters)
+  - [Private Helper Methods](#private-helper-methods)
+- [Usage Example](#usage-example)
+
+## How to Use in Your Project
+
+The `CSVFilter` is your go-to tool for cleaning and transforming CSV data before it gets used or uploaded. It works by applying a sequence of rules that you define.
+
+### Quick Start Guide
+
+1.  **Import the Class**:
+    ```python
+    from functions.csv_filter import CSVFilter
+    ```
+
+2.  **Initialize**:
+    Load your data from a file path or an existing Pandas DataFrame.
+    ```python
+    # From a file
+    my_filter = CSVFilter("path/to/my_data.csv")
+    
+    # OR from a DataFrame
+    my_filter = CSVFilter(existing_dataframe)
+    ```
+
+3.  **Define Your Rules**:
+    Create a dictionary specifying what you want to do.
+    ```python
+    my_rules = {
+        'columns_to_remove': ['unused_col_1', 'sensitive_data'],
+        'filter_criteria': {
+            'status': ['EXACT: Active'],      # Keep only 'Active' status
+            'email': ['CONTAINS: @company.com'] # Keep only company emails
+        },
+        'fill_na_value': 'Unknown'            # Replace missing values
+    }
+    ```
+
+4.  **Set the Order**:
+    Tell the filter in what order to apply these rules.
+    ```python
+    my_order = ['drop_cols', 'filter_rows', 'handle_na']
+    ```
+
+5.  **Run It**:
+    ```python
+    cleaned_df = my_filter.apply_filters(my_rules, my_order)
+    ```
+
+---
+
 ## Overview
-The `CSVFilter` class is a reusable, sequence-configurable module designed for cleaning and transforming CSV data using the Pandas library. It allows users to define a series of operations such as renaming columns, dropping columns or rows, filtering based on criteria, and handling missing values.
+The `CSVFilter` class is a reusable, sequence-configurable module designed for cleaning and transforming CSV data using the Pandas library. It allows users to define a series of operations such as renaming columns, dropping columns or rows, filtering based on criteria, performing conditional math, and handling missing values.
 
 ## Class: `CSVFilter`
 
 ### Initialization
 ```python
-def __init__(self, csv_file_path: str)
+def __init__(self, input_source: Union[str, pd.DataFrame])
 ```
-Initializes the filter by loading the CSV data into a Pandas DataFrame.
+Initializes the filter by loading the data into a Pandas DataFrame.
 - **Parameters:**
-  - `csv_file_path` (str): The file path to the input CSV file.
+  - `input_source`: Can be a string (file path to CSV) or a `pd.DataFrame`.
 - **Raises:**
-  - `FileNotFoundError`: If the CSV file does not exist.
+  - `FileNotFoundError`: If the input is a string and the file does not exist.
+  - `TypeError`: If the input is neither a string nor a DataFrame.
 
 ### Methods
 
@@ -29,8 +88,9 @@ The primary execution method that applies a sequence of cleaning and filtering o
     - `'rename'`: Renames columns.
     - `'drop_cols'`: Removes specified columns.
     - `'drop_rows'`: Removes rows based on specific values.
-    - `'filter_rows'`: Applies complex filtering criteria (e.g., CONTAINS, >, <).
+    - `'filter_rows'`: Applies complex filtering criteria (e.g., CONTAINS, EXACT, >, <).
     - `'handle_na'`: Fills NaN/Null values.
+    - `'conditional_math'`: Applies arithmetic operations based on conditions.
 - **Returns:**
   - `pd.DataFrame`: The cleaned and filtered DataFrame.
 
@@ -41,11 +101,15 @@ These methods are used internally by `apply_filters` but define the logic for ea
 - **`_drop_columns(self, columns_to_remove: List[str])`**: Drops specified columns from the DataFrame.
 - **`_drop_rows_by_value(self, rows_to_remove_by_value: Dict[str, Any])`**: Removes rows where a column matches a specific value or list of values. Supports `None` to match blanks/NaNs.
 - **`_apply_filtering_criteria(self, filter_criteria: Dict[str, Any])`**: Applies complex filtering logic. Supports:
-  - `CONTAINS:` for string matching.
-  - Comparison operators (`>`, `<`, `>=`, `<=`).
+  - `CONTAINS:` for partial string matching.
+  - `EXACT:` for exact string matching.
+  - Comparison operators (`>`, `<`, `>=`, `<=`) for numeric comparisons.
   - List/Tuple for `IN` clauses.
-  - Exact value matches.
+  - Exact value matches (default if no operator specified).
 - **`_handle_missing_values(self, fill_na_value: Any)`**: Fills missing values (NaN/Null) with a specified value.
+- **`_apply_multiplier_math(self, math_rules: List[Dict[str, Any]])`**: Applies conditional arithmetic.
+  - Example Rule: `{'target': 'charge', 'source': 'amount', 'multiplier': 0.1, 'trigger_values': [0, None]}`
+  - This would set `charge = amount * 0.1` wherever `charge` is 0 or Empty.
 
 ## Usage Example
 ```python
@@ -59,12 +123,24 @@ rules = {
     "rename_columns": {"OldName": "NewName"},
     "columns_to_remove": ["UnnecessaryCol"],
     "rows_to_remove_by_value": {"Status": ["Inactive", "Void"]},
-    "filter_criteria": {"Age": ">18", "Email": "CONTAINS:@gmail.com"},
-    "fill_na_value": "N/A"
+    "filter_criteria": {
+        "Age": ">18", 
+        "Email": "CONTAINS:@gmail.com",
+        "Category": "EXACT:VIP"
+    },
+    "fill_na_value": "N/A",
+    "math_rules": [
+        {
+            "target": "Tax",
+            "source": "Price",
+            "multiplier": 0.05,
+            "trigger_values": [0, None] # Calculate tax if it's missing or 0
+        }
+    ]
 }
 
 # Define Order
-order = ["rename", "drop_cols", "drop_rows", "filter_rows", "handle_na"]
+order = ["rename", "drop_cols", "drop_rows", "filter_rows", "conditional_math", "handle_na"]
 
 # Execute
 cleaned_df = filter_tool.apply_filters(rules, order)
