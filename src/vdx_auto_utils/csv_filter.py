@@ -235,6 +235,42 @@ class CSVFilter:
             if rows_affected > 0:
                 self.df.loc[mask, target] = self.df.loc[mask, source] * multiplier
                 print(f"   -> Updated {rows_affected} rows in '{target}' using '{source}' * {multiplier}") 
+    
+    def _split_column(self, split_rules: Dict[str, Any]):
+        """
+        Helper for splitting a column into two new columns.
+        Expects: {
+            'target': 'original_col', 
+            'delimiter': '-', 
+            'new_headers': ['Col1', 'Col2']
+        }
+
+        Args:
+            split_rules: Dictionary defining the split operation.
+        """
+        target = split_rules.get('target')
+        delimiter = split_rules.get('delimiter')
+        new_headers = split_rules.get('new_headers', [f"{target}_1", f"{target}_2"])
+
+        if target not in self.df.columns:
+            print(f"-> Warning: Column '{target}' not found for splitting.")
+            return
+
+        print(f"-> Splitting column '{target}' by '{delimiter}' into {new_headers}")
+
+        try:
+            # Expand=True turns the result into a DataFrame with two columns
+            split_data = self.df[target].astype(str).str.split(delimiter, n=1, expand=True)
+
+            # Assign to new headers
+            self.df[new_headers[0]] = split_data[0]
+            self.df[new_headers[1]] = split_data[1] if 1 in split_data.columns else ""
+            
+            # Remove original column 
+            self.df.drop(columns=[target], inplace=True)
+
+        except Exception as e:
+            print(f"🛑 Error splitting column: {e}")
 
     # --- PRIMARY EXECUTION METHOD ---
     def apply_filters(self, 
@@ -259,7 +295,8 @@ class CSVFilter:
             'drop_rows': (self._drop_rows_by_value, 'rows_to_remove_by_value'),
             'filter_rows': (self._apply_filtering_criteria, 'filter_criteria'),
             'handle_na': (self._handle_missing_values, 'fill_na_value'),
-            'conditional_math': (self._apply_multiplier_math, 'math_rules')
+            'conditional_math': (self._apply_multiplier_math, 'math_rules'),
+            'split': (self._split_column, 'split_rules')
         }
 
         # Iterate through the requested order
