@@ -110,6 +110,8 @@ These methods are used internally by `apply_filters` but define the logic for ea
 - **`_apply_multiplier_math(self, math_rules: List[Dict[str, Any]])`**: Applies conditional arithmetic.
   - Example Rule: `{'target': 'charge', 'source': 'amount', 'multiplier': 0.1, 'trigger_values': [0, None]}`
   - This would set `charge = amount * 0.1` wherever `charge` is 0 or Empty.
+- **`_split_column(self, split_rules: Dict[str, Any])`**: Splits 1 column into 2 columns.
+  - Example Rule: `{'target': 'To Address Label', 'delimiter': '/', 'new_headers': ['Label', 'Order ID']}`
 
 ## Usage Example
 ```python

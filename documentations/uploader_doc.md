@@ -94,6 +94,24 @@ The main method to upload a Pandas DataFrame to a Google Sheet. Includes automat
   - `include_header` (bool): If `True`, includes the DataFrame's header row in the upload. Defaults to `True`. Automatically set to `False` if appending.
   - `gsheet_layout_map` (Dict): Optional mapping of GSheet columns (A, B..) to DataFrame columns.
 
+#### `update_selective_columns`
+```python
+def update_selective_columns(self,
+                             dataframe: pd.DataFrame,
+                             spreadsheet_id: str,
+                             worksheet_name: str = "Sheet1", 
+                             gsheet_layout_map: Dict[str, str] = None,
+                             start_row: int = 1)
+```
+Updates specific columns in a worksheet without overwriting other columns. This is useful for updating status columns or specific fields while preserving other data.
+
+- **Parameters:**
+  - `dataframe` (pd.DataFrame): The source DataFrame containing the data to update.
+  - `spreadsheet_id` (str): The ID of the target Google Sheet.
+  - `worksheet_name` (str): The target tab name.
+  - `gsheet_layout_map` (Dict[str, str]): A dictionary mapping Google Sheet column letters to DataFrame column names (e.g., `{'E': 'Status'}`). **Required**.
+  - `start_row` (int): The row number to start the update from. Defaults to 1.
+
 #### `upload_csv_to_sheet` (Deprecated)
 Legacy method. It is recommended to use `CSVFilter` to load/clean data and then use `upload_dataframe_to_sheet`.
 
@@ -142,5 +160,16 @@ uploader.upload_dataframe_to_sheet(
     spreadsheet_id="1abc...",
     worksheet_name="FormattedView",
     gsheet_layout_map=layout
+)
+
+# 4. Selective Column Update
+# Update only Column E with 'Status' data, starting from row 2
+status_map = {'E': 'Status'}
+uploader.update_selective_columns(
+    dataframe=df,
+    spreadsheet_id="1abc...",
+    worksheet_name="Orders",
+    gsheet_layout_map=status_map,
+    start_row=2
 )
 ```
