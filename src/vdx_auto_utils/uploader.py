@@ -35,7 +35,6 @@ class GoogleSheetUploader:
         self.client = gspread.authorize(self.creds)
         print("Authentication successful.")
 
-
     # --- HELPER METHOD ---
     def _prepare_data_for_gspread(self, 
                                     df: pd.DataFrame, 
@@ -189,3 +188,50 @@ class GoogleSheetUploader:
             print(f"Error: Spreadsheet '{spreadsheet_id}' not found. Check name and Service Account permissions.")
         except Exception as e:
             print(f"An unexpected error occurred during the upload process: {e}")
+
+    def update_selective_columns(self,
+                                 dataframe: pd.DataFrame,
+                                 spreadsheet_id: str,
+                                 worksheet_name: str = "Sheet1", 
+                                 gsheet_layout_map: Dict[str, str] = None,
+                                 start_row: int = 1):
+        """
+        Updates specific columns in a worksheet without overwriting other columns.
+        
+        Args:
+            dataframe: The source DataFrame.
+            spreadsheet_id: The ID of the target Google Sheet.
+            worksheet_name: The target tab name.
+            gsheet_layout_map: {'Sheet_Letter': 'DF_Column_Name'}
+            start_row: Row number to start the update (e.g., 3).
+        """
+        if not gsheet_layout_map:
+            print("⚠️ No layout map provided. Skipping selective update.")
+            return
+
+        try:
+            # Connect using the existing gspread client
+            spreadsheet = self.client.open_by_key(spreadsheet_id)
+            worksheet = spreadsheet.worksheet(worksheet_name)
+            
+            # Calculate range end based on DataFrame rows
+            end_row = start_row + len(dataframe) - 1
+            
+            # Loop through the mapping as requested: Letter -> DF Name
+            for sheet_col, df_col in gsheet_layout_map.items():
+                if df_col not in dataframe.columns:
+                    print(f"-> Warning: DataFrame column '{df_col}' not found. Skipping.")
+                    continue
+                
+                # Construct target range like 'E3:E33'
+                target_range = f"{sheet_col}{start_row}:{sheet_col}{end_row}"
+                
+                # Convert the single DF column into the list-of-lists format gspread requires
+                values = dataframe[[df_col]].fillna('').astype(str).values.tolist()
+                
+                # Perform the update on this specific vertical range only
+                worksheet.update(target_range, values, value_input_option='USER_ENTERED')
+                print(f"✅ Selectively updated GSheet Column {sheet_col} with '{df_col}' data.")
+                
+        except Exception as e:
+            print(f"❌ Error during selective update: {e}")
