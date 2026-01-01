@@ -184,7 +184,7 @@ class CSVFilter:
             combined_mask &= column_mask 
 
         # Apply the combined filter: keep only rows where the mask is True
-        self.df = self.df[combined_mask]
+        self.df = self.df[combined_mask].copy()
         
         print(f"-> Rows removed (by criteria): {initial_count - len(self.df)}")
         return self.df
@@ -263,11 +263,11 @@ class CSVFilter:
             split_data = self.df[target].astype(str).str.split(delimiter, n=1, expand=True)
 
             # Assign to new headers
-            self.df[new_headers[0]] = split_data[0]
-            self.df[new_headers[1]] = split_data[1] if 1 in split_data.columns else ""
+            self.df.loc[:, new_headers[0]] = split_data[0]
+            self.df.loc[:, new_headers[1]] = split_data[1] if 1 in split_data.columns else ""
             
             # Remove original column 
-            self.df.drop(columns=[target], inplace=True)
+            self.df = self.df.drop(columns=[target])
 
         except Exception as e:
             print(f"🛑 Error splitting column: {e}")
