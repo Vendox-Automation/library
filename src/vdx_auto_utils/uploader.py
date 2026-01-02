@@ -194,44 +194,48 @@ class GoogleSheetUploader:
                                  spreadsheet_id: str,
                                  worksheet_name: str = "Sheet1", 
                                  gsheet_layout_map: Dict[str, str] = None,
-                                 start_row: int = 1):
+                                 start_row: int = 3,
+                                 append: bool = False):
         """
-        Updates specific columns in a worksheet without overwriting other columns.
-        
-        Args:
-            dataframe: The source DataFrame.
-            spreadsheet_id: The ID of the target Google Sheet.
-            worksheet_name: The target tab name.
-            gsheet_layout_map: {'Sheet_Letter': 'DF_Column_Name'}
-            start_row: Row number to start the update (e.g., 3).
+        Updates specific columns in a worksheet. 
+        If append=True, it finds the next empty row in those columns instead of using start_row.
         """
         if not gsheet_layout_map:
             print("⚠️ No layout map provided. Skipping selective update.")
             return
 
         try:
-            # Connect using the existing gspread client
             spreadsheet = self.client.open_by_key(spreadsheet_id)
             worksheet = spreadsheet.worksheet(worksheet_name)
             
+            # --- APPEND LOGIC ---
+            if append:
+                # Get all existing values to find the actual end of data
+                existing_values = worksheet.get_all_values()
+                # Find the last row that has data in any of the mapped columns
+                # We start at the provided start_row to respect headers
+                actual_start = len(existing_values) + 1
+                if actual_start < start_row:
+                    actual_start = start_row
+                print(f"-> Append mode active. New start row: {actual_start}")
+                start_row = actual_start
+
             # Calculate range end based on DataFrame rows
             end_row = start_row + len(dataframe) - 1
             
-            # Loop through the mapping as requested: Letter -> DF Name
             for sheet_col, df_col in gsheet_layout_map.items():
                 if df_col not in dataframe.columns:
-                    print(f"-> Warning: DataFrame column '{df_col}' not found. Skipping.")
+                    print(f"-> Warning: Column '{df_col}' not found. Skipping.")
                     continue
                 
-                # Construct target range like 'E3:E33'
                 target_range = f"{sheet_col}{start_row}:{sheet_col}{end_row}"
                 
-                # Convert the single DF column into the list-of-lists format gspread requires
+                # Convert to list-of-lists format
                 values = dataframe[[df_col]].fillna('').astype(str).values.tolist()
                 
-                # Perform the update on this specific vertical range only
+                # Update specific vertical range
                 worksheet.update(target_range, values, value_input_option='USER_ENTERED')
-                print(f"✅ Selectively updated GSheet Column {sheet_col} with '{df_col}' data.")
+                print(f"✅ Selective update ({'Append' if append else 'Overwrite'}): Column {sheet_col} with '{df_col}'.")
                 
         except Exception as e:
             print(f"❌ Error during selective update: {e}")
