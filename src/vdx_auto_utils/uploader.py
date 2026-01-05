@@ -197,45 +197,53 @@ class GoogleSheetUploader:
                                  start_row: int = 3,
                                  append: bool = False):
         """
-        Updates specific columns in a worksheet. 
-        If append=True, it finds the next empty row in those columns instead of using start_row.
+        Updates specific columns. Expands grid if limits are exceeded 
+        and finds next row based on anchor column.
         """
         if not gsheet_layout_map:
-            print("⚠️ No layout map provided. Skipping selective update.")
+            print("⚠️ No layout map provided. Skipping.")
             return
 
         try:
             spreadsheet = self.client.open_by_key(spreadsheet_id)
             worksheet = spreadsheet.worksheet(worksheet_name)
             
-            # --- APPEND LOGIC ---
+            # --- 1. DETERMINE START ROW ---
+            final_start_row = start_row
             if append:
-                # Get all existing values to find the actual end of data
-                existing_values = worksheet.get_all_values()
-                # Find the last row that has data in any of the mapped columns
-                # We start at the provided start_row to respect headers
-                actual_start = len(existing_values) + 1
-                if actual_start < start_row:
-                    actual_start = start_row
-                print(f"-> Append mode active. New start row: {actual_start}")
-                start_row = actual_start
-
-            # Calculate range end based on DataFrame rows
-            end_row = start_row + len(dataframe) - 1
+                # Use the first column in your map (e.g., 'E') as the anchor
+                anchor_col = list(gsheet_layout_map.keys())[0]
+                # Get values for that specific column only
+                col_values = worksheet.col_values(self._col_letter_to_index(anchor_col))
+                # Ensure we don't start before your template's start_row
+                final_start_row = max(len(col_values) + 1, start_row)
             
+            # --- 2. GRID LIMIT SAFETY ---
+            # Calculate if we exceed current sheet rows (e.g., the 60 row limit)
+            needed_rows = final_start_row + len(dataframe) - 1
+            if needed_rows > worksheet.row_count:
+                rows_to_add = needed_rows - worksheet.row_count
+                print(f"📏 Expanding sheet: Adding {rows_to_add} rows...")
+                worksheet.add_rows(rows_to_add)
+
+            # --- 3. PERFORM UPDATE ---
+            end_row = final_start_row + len(dataframe) - 1
             for sheet_col, df_col in gsheet_layout_map.items():
                 if df_col not in dataframe.columns:
-                    print(f"-> Warning: Column '{df_col}' not found. Skipping.")
                     continue
                 
-                target_range = f"{sheet_col}{start_row}:{sheet_col}{end_row}"
-                
-                # Convert to list-of-lists format
+                target_range = f"{sheet_col}{final_start_row}:{sheet_col}{end_row}"
                 values = dataframe[[df_col]].fillna('').astype(str).values.tolist()
                 
-                # Update specific vertical range
                 worksheet.update(target_range, values, value_input_option='USER_ENTERED')
-                print(f"✅ Selective update ({'Append' if append else 'Overwrite'}): Column {sheet_col} with '{df_col}'.")
+                print(f"✅ Updated {sheet_col}{final_start_row}:{sheet_col}{end_row}")
                 
         except Exception as e:
             print(f"❌ Error during selective update: {e}")
+
+    def _col_letter_to_index(self, letter):
+        """Helper to convert 'A'->1, 'B'->2, etc."""
+        index = 0
+        for char in letter:
+            index = index * 26 + (ord(char.upper()) - ord('A') + 1)
+        return index
