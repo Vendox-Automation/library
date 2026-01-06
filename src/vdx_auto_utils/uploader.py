@@ -3,6 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 import re 
+import traceback
 from typing import List, Dict, Any, Union
 
 class GoogleSheetUploader:
@@ -239,6 +240,7 @@ class GoogleSheetUploader:
                 print(f"✅ Updated {sheet_col}{final_start_row}:{sheet_col}{end_row}")
                 
         except Exception as e:
+            traceback.print_exc() 
             print(f"❌ Error during selective update: {e}")
 
     def _col_letter_to_index(self, letter):
