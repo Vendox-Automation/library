@@ -196,7 +196,8 @@ class GoogleSheetUploader:
                                  worksheet_name: str = "Sheet1", 
                                  gsheet_layout_map: Dict[str, str] = None,
                                  start_row: int = 3,
-                                 append: bool = False):
+                                 append: bool = False,
+                                 chunk_size: int = 2000):
         """
         Updates specific columns. Expands grid if limits are exceeded 
         and finds next row based on anchor column.
@@ -212,11 +213,8 @@ class GoogleSheetUploader:
             # --- 1. DETERMINE START ROW ---
             final_start_row = start_row
             if append:
-                # Use the first column in your map (e.g., 'E') as the anchor
                 anchor_col = list(gsheet_layout_map.keys())[0]
-                # Get values for that specific column only
                 col_values = worksheet.col_values(self._col_letter_to_index(anchor_col))
-                # Ensure we don't start before your template's start_row
                 final_start_row = max(len(col_values) + 1, start_row)
             
             # --- 2. GRID LIMIT SAFETY ---
@@ -227,17 +225,25 @@ class GoogleSheetUploader:
                 print(f"📏 Expanding sheet: Adding {rows_to_add} rows...")
                 worksheet.add_rows(rows_to_add)
 
-            # --- 3. PERFORM UPDATE ---
-            end_row = final_start_row + len(dataframe) - 1
-            for sheet_col, df_col in gsheet_layout_map.items():
-                if df_col not in dataframe.columns:
-                    continue
+            # 3. CHUNKED UPLOAD
+            # Loop through the dataframe in small chunks to prevent API timeouts
+            for i in range(0, len(dataframe), chunk_size):
+                chunk = dataframe.iloc[i : i + chunk_size]
+                current_start = final_start_row + i
+                current_end = current_start + len(chunk) - 1
                 
-                target_range = f"{sheet_col}{final_start_row}:{sheet_col}{end_row}"
-                values = dataframe[[df_col]].fillna('').astype(str).values.tolist()
+                for sheet_col, df_col in gsheet_layout_map.items():
+                    if df_col not in chunk.columns: continue
+                    
+                    target_range = f"{sheet_col}{current_start}:{sheet_col}{current_end}"
+                    values = chunk[[df_col]].fillna('').astype(str).values.tolist()
+                    
+                    # Update this specific chunk
+                    worksheet.update(target_range, values, value_input_option='USER_ENTERED')
                 
-                worksheet.update(target_range, values, value_input_option='USER_ENTERED')
-                print(f"✅ Updated {sheet_col}{final_start_row}:{sheet_col}{end_row}")
+                print(f"📦 Progress: Uploaded rows {i} to {i + len(chunk)} for {worksheet_name}")
+
+            print(f"✅ Selective update completed successfully.")
                 
         except Exception as e:
             traceback.print_exc() 
