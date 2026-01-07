@@ -191,12 +191,12 @@ class GoogleSheetUploader:
             print(f"An unexpected error occurred during the upload process: {e}")
 
     def update_selective_columns(self,
-                                dataframe: pd.DataFrame,
-                                spreadsheet_id: str,
-                                worksheet_name: str = "Sheet1", 
-                                gsheet_layout_map: Dict[str, str] = None,
-                                start_row: int = 3,
-                                append: bool = False):
+                             dataframe: pd.DataFrame,
+                             spreadsheet_id: str,
+                             worksheet_name: str = "Sheet1", 
+                             gsheet_layout_map: Dict[str, str] = None,
+                             start_row: int = 3,
+                             append: bool = False):
         """
         Updates specific columns using a single batch_update call to save API quota.
         """
