@@ -214,23 +214,24 @@ class CSVFilter:
                 continue
 
             # 1. Clean data to ensure we can do math
-            # Coerce source/target to numeric, errors='coerce' turns non-numbers to NaN
             self.df[target] = pd.to_numeric(self.df[target], errors='coerce')
             self.df[source] = pd.to_numeric(self.df[source], errors='coerce')
 
-            # 2. Build the Mask (Where should we apply the math?)
-            # We look for rows where the target column matches any of our "trigger values" (0, NaN, empty)
-            mask = pd.Series(False, index=self.df.index)
-            
-            for val in triggers:
-                if val is None or val == '':
-                    mask |= self.df[target].isna() # Catch NaNs
-                else:
-                    mask |= (self.df[target] == val) # Catch specific numbers like 0
+            # --- 2. Build the Mask (UPDATED) ---
+            # Check for Wildcard: If triggers is '*' or contains '*', select ALL rows
+            if triggers == '*' or (isinstance(triggers, list) and '*' in triggers):
+                print(f"   ⚡ Wildcard detected. Applying to ALL rows.")
+                mask = pd.Series(True, index=self.df.index)
+            else:
+                # Standard conditional logic
+                mask = pd.Series(False, index=self.df.index)
+                for val in triggers:
+                    if val is None or val == '':
+                        mask |= self.df[target].isna()
+                    else:
+                        mask |= (self.df[target] == val)
 
             # 3. Apply the Math
-            # For rows where 'mask' is True: Target = Source * Multiplier
-            # We use .loc to safely assign values
             rows_affected = mask.sum()
             if rows_affected > 0:
                 self.df.loc[mask, target] = self.df.loc[mask, source] * multiplier
