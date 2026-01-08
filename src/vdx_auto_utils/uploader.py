@@ -3,8 +3,11 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 import re 
-import traceback
+import socket
 from typing import List, Dict, Any, Union
+
+# Prevent hanging forever
+socket.setdefaulttimeout(60)
 
 class GoogleSheetUploader:
     """
@@ -190,72 +193,61 @@ class GoogleSheetUploader:
         except Exception as e:
             print(f"An unexpected error occurred during the upload process: {e}")
 
-    def update_selective_columns(self,
-                             dataframe: pd.DataFrame,
-                             spreadsheet_id: str,
-                             worksheet_name: str = "Sheet1", 
-                             gsheet_layout_map: Dict[str, str] = None,
-                             start_row: int = 3,
-                             append: bool = False):
+    def update_selective_columns(self, dataframe, spreadsheet_id, worksheet_name, 
+                                 gsheet_layout_map, start_row=3, append=False):
         """
-        Updates specific columns using a single batch_update call to save API quota.
+        Overridden method: Uses batch_update and no internal try/catch
+        so errors properly trigger the main retry loop.
         """
         if not gsheet_layout_map:
             print("⚠️ No layout map provided. Skipping.")
             return
 
-        try:
-            spreadsheet = self.client.open_by_key(spreadsheet_id)
-            worksheet = spreadsheet.worksheet(worksheet_name)
+        # No try/except block here! We WANT errors to crash so the retry loop catches them.
+        spreadsheet = self.client.open_by_key(spreadsheet_id)
+        worksheet = spreadsheet.worksheet(worksheet_name)
+        
+        # --- 1. DETERMINE START ROW ---
+        final_start_row = start_row
+        if append:
+            anchor_col = list(gsheet_layout_map.keys())[0]
+            col_values = worksheet.col_values(self._col_letter_to_index(anchor_col))
+            final_start_row = max(len(col_values) + 1, start_row)
+        
+        # --- 2. GRID LIMIT SAFETY ---
+        needed_rows = final_start_row + len(dataframe) - 1
+        if needed_rows > worksheet.row_count:
+            rows_to_add = needed_rows - worksheet.row_count + 10
+            print(f"📏 Expanding sheet: Adding {rows_to_add} rows...")
+            worksheet.add_rows(rows_to_add)
+
+        # --- 3. COMPILE BATCH DATA ---
+        batch_data = []
+        end_row = final_start_row + len(dataframe) - 1
+
+        for sheet_col, df_col in gsheet_layout_map.items():
+            if df_col not in dataframe.columns:
+                continue
             
-            # --- 1. DETERMINE START ROW ---
-            final_start_row = start_row
-            if append:
-                anchor_col = list(gsheet_layout_map.keys())[0]
-                col_values = worksheet.col_values(self._col_letter_to_index(anchor_col))
-                final_start_row = max(len(col_values) + 1, start_row)
+            # Convert to list of lists, replace NaNs
+            values = dataframe[[df_col]].fillna('').astype(str).values.tolist()
             
-            # --- 2. GRID LIMIT SAFETY ---
-            needed_rows = final_start_row + len(dataframe) - 1
-            if needed_rows > worksheet.row_count:
-                rows_to_add = needed_rows - worksheet.row_count
-                print(f"📏 Expanding sheet: Adding {rows_to_add} rows...")
-                worksheet.add_rows(rows_to_add)
+            # Construct Range
+            target_range = f"{sheet_col}{final_start_row}:{sheet_col}{end_row}"
+            
+            batch_data.append({
+                'range': target_range,
+                'values': values
+            })
 
-            # --- 3. COMPILE BATCH DATA ---
-            batch_data = []
-            end_row = final_start_row + len(dataframe) - 1
-
-            for sheet_col, df_col in gsheet_layout_map.items():
-                if df_col not in dataframe.columns:
-                    print(f"⚠️ Column '{df_col}' not found in DataFrame. Skipping.")
-                    continue
-                
-                # Construct the range for this specific column
-                target_range = f"{sheet_col}{final_start_row}:{sheet_col}{end_row}"
-                
-                # Prepare values: convert to list of lists, handle NaNs
-                values = dataframe[[df_col]].fillna('').astype(str).values.tolist()
-                
-                # Append to our batch list
-                batch_data.append({
-                    'range': target_range,
-                    'values': values
-                })
-
-            # --- 4. EXECUTE SINGLE BATCH CALL ---
-            if batch_data:
-                worksheet.batch_update(batch_data, value_input_option='USER_ENTERED')
-                print(f"✅ Successfully batch updated {len(batch_data)} columns in '{worksheet_name}'.")
-            else:
-                print("ℹ️ No valid columns found to update.")
-                
-        except Exception as e:
-            traceback.print_exc()
-            print(f"❌ Error during selective update: {e}")
+        # --- 4. EXECUTE SINGLE BATCH CALL ---
+        if batch_data:
+            worksheet.batch_update(batch_data, value_input_option='USER_ENTERED')
+            print(f"✅ Batch updated {len(dataframe)} rows in '{worksheet_name}'")
+        else:
+            print("ℹ️ No valid columns found to update.")
 
     def _col_letter_to_index(self, letter):
-        """Helper to convert 'A'->1, 'B'->2, etc."""
         index = 0
         for char in letter:
             index = index * 26 + (ord(char.upper()) - ord('A') + 1)
