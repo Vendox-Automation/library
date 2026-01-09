@@ -237,9 +237,9 @@ class CSVFilter:
                 self.df.loc[mask, target] = self.df.loc[mask, source] * multiplier
                 print(f"   -> Updated {rows_affected} rows in '{target}' using '{source}' * {multiplier}") 
     
-    def _split_column(self, split_rules: Dict[str, Any]):
+    def _split_column(self, split_rules: Union[Dict[str, Any], List[Dict[str, Any]]]):
         """
-        Helper for splitting a column into two new columns.
+        Helper for splitting a column into two new columns. Now supports multiple splits.
         Expects: {
             'target': 'original_col', 
             'delimiter': '-', 
@@ -249,8 +249,17 @@ class CSVFilter:
         Args:
             split_rules: Dictionary defining the split operation.
         """
+        # 1. Handle List of Rules (Recursive)
+        if isinstance(split_rules, list):
+            print(f"-> Processing sequence of {len(split_rules)} split rules...")
+            for rule in split_rules:
+                self._split_column(rule) # Recursive call for each rule in order
+            return
+
+        # 2. Standard Logic for Single Rule
         target = split_rules.get('target')
         delimiter = split_rules.get('delimiter')
+        # If new_headers is missing, auto-generate specific names
         new_headers = split_rules.get('new_headers', [f"{target}_1", f"{target}_2"])
 
         if target not in self.df.columns:
@@ -263,15 +272,19 @@ class CSVFilter:
             # Expand=True turns the result into a DataFrame with two columns
             split_data = self.df[target].astype(str).str.split(delimiter, n=1, expand=True)
 
-            # Assign to new headers
+            # Assign to new headers safely
             self.df.loc[:, new_headers[0]] = split_data[0]
-            self.df.loc[:, new_headers[1]] = split_data[1] if 1 in split_data.columns else ""
+            # Handle cases where the delimiter wasn't found (no second part)
+            if len(split_data.columns) > 1:
+                self.df.loc[:, new_headers[1]] = split_data[1]
+            else:
+                self.df.loc[:, new_headers[1]] = "" # Fill with empty string if no split occurred
             
             # Remove original column 
-            self.df = self.df.drop(columns=[target])
+            self.df.drop(columns=[target], inplace=True)
 
         except Exception as e:
-            print(f"🛑 Error splitting column: {e}")
+            print(f"🛑 Error splitting column '{target}': {e}")
 
     # --- PRIMARY EXECUTION METHOD ---
     def apply_filters(self, 
