@@ -286,6 +286,15 @@ class CSVFilter:
         except Exception as e:
             print(f"🛑 Error splitting column '{target}': {e}")
 
+    def _drop_row_indices(self, indices: List[int]):
+        """Helper to drop rows by their index (0-based)."""
+        print(f"-> Dropping rows at indices: {indices}")
+        try:
+            self.df.drop(indices, inplace=True)
+            self.df.reset_index(drop=True, inplace=True)
+        except Exception as e:
+            print(f"⚠️ Warning: Could not drop rows {indices}: {e}")
+
     # --- PRIMARY EXECUTION METHOD ---
     def apply_filters(self, 
                       filter_rules: Dict[str, Any],
@@ -310,7 +319,8 @@ class CSVFilter:
             'filter_rows': (self._apply_filtering_criteria, 'filter_criteria'),
             'handle_na': (self._handle_missing_values, 'fill_na_value'),
             'conditional_math': (self._apply_multiplier_math, 'math_rules'),
-            'split': (self._split_column, 'split_rules')
+            'split': (self._split_column, 'split_rules'),
+            'drop_indices': (self._drop_row_indices, 'indices_to_drop')
         }
 
         # Iterate through the requested order
