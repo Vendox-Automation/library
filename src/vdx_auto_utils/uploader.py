@@ -4,6 +4,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import os
 import re 
 import socket
+import traceback
 from typing import List, Dict, Any, Union
 
 # Prevent hanging forever
@@ -127,8 +128,8 @@ class GoogleSheetUploader:
             worksheet = spreadsheet.worksheet(worksheet_name)
 
             # 2. DYNAMIC LOGIC: Determine Start Cell and Row Index
-            start_cell = upload_start_cell # default
-            start_row_int = 1 # default integer row for calculation
+            start_cell = upload_start_cell 
+            start_row_int = 1 
             
             if upload_start_cell.upper() == "APPEND":
                 # Get all existing values to find the end of the data
@@ -154,7 +155,6 @@ class GoogleSheetUploader:
                 include_header=include_header 
             )
 
-            # --- NEW: AUTO-RESIZE LOGIC ---
             # Calculate how much space we need vs what we have
             num_rows_to_upload = len(data_to_upload)
             required_total_rows = start_row_int + num_rows_to_upload
@@ -172,7 +172,6 @@ class GoogleSheetUploader:
             if required_cols > current_sheet_cols:
                 print(f"↔️ Resizing sheet: Extending columns to {required_cols}")
                 worksheet.resize(rows=worksheet.row_count, cols=required_cols)
-            # -----------------------------
 
             # 4. Clear (only if NOT appending and requested)
             if clear_before_upload and upload_start_cell.upper() != "APPEND":
@@ -188,10 +187,13 @@ class GoogleSheetUploader:
 
         except gspread.WorksheetNotFound:
             print(f"Error: Worksheet '{worksheet_name}' not found in '{spreadsheet_id}'.")
+            traceback.print_exc()
         except gspread.SpreadsheetNotFound:
             print(f"Error: Spreadsheet '{spreadsheet_id}' not found. Check name and Service Account permissions.")
+            traceback.print_exc()
         except Exception as e:
             print(f"An unexpected error occurred during the upload process: {e}")
+            traceback.print_exc()
 
     def update_selective_columns(self, dataframe, spreadsheet_id, worksheet_name, 
                                  gsheet_layout_map, start_row=3, append=False):
@@ -203,7 +205,6 @@ class GoogleSheetUploader:
             print("⚠️ No layout map provided. Skipping.")
             return
 
-        # No try/except block here! We WANT errors to crash so the retry loop catches them.
         spreadsheet = self.client.open_by_key(spreadsheet_id)
         worksheet = spreadsheet.worksheet(worksheet_name)
         

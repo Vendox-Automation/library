@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import traceback
 from typing import List, Dict, Any, Union
 
 class CSVFilter:
@@ -21,9 +22,11 @@ class CSVFilter:
             try:
                 self.df = pd.read_csv(input_source, low_memory=False)
             except FileNotFoundError:
+                traceback.print_exc()
                 raise FileNotFoundError(f"Input CSV file not found at: {input_source}")
             except Exception as e:
                 print(f"Error loading CSV: {e}")
+                traceback.print_exc()
                 raise
         else:
             raise TypeError("Input must be either a file path (string) or a Pandas DataFrame.")
@@ -125,7 +128,6 @@ class CSVFilter:
                 continue
             
             # 2. Prepare for Intra-column OR logic.
-            # Ensure criterion is a list, even if it's a single item, for consistent looping.
             criteria_list = criterion if isinstance(criterion, list) else [criterion]
             
             # Initialize the mask for this specific column to False (no rows match yet)
@@ -245,7 +247,6 @@ class CSVFilter:
             'delimiter': '-', 
             'new_headers': ['Col1', 'Col2']
         }
-
         Args:
             split_rules: Dictionary defining the split operation.
         """
@@ -339,6 +340,7 @@ class CSVFilter:
                 except Exception as e:
                     # Provide helpful context if an operation fails
                     print(f"🛑 Error during step '{step_name}' using parameter '{param_key}': {e}")
+                    traceback.print_exc()
                     raise
             else:
                 print(f"-> Skipping '{step_name}': No rules provided.")
