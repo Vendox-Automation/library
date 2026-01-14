@@ -91,6 +91,8 @@ The primary execution method that applies a sequence of cleaning and filtering o
     - `'filter_rows'`: Applies complex filtering criteria (e.g., CONTAINS, EXACT, >, <).
     - `'handle_na'`: Fills NaN/Null values.
     - `'conditional_math'`: Applies arithmetic operations based on conditions.
+    - `'split'`: Splits a column into multiple columns.
+    - `'drop_indices'`: Drops rows by index.
 - **Returns:**
   - `pd.DataFrame`: The cleaned and filtered DataFrame.
 
@@ -112,6 +114,7 @@ These methods are used internally by `apply_filters` but define the logic for ea
   - This would set `charge = amount * 0.1` wherever `charge` is 0 or Empty.
 - **`_split_column(self, split_rules: Dict[str, Any])`**: Splits 1 column into 2 columns.
   - Example Rule: `{'target': 'To Address Label', 'delimiter': '/', 'new_headers': ['Label', 'Order ID']}`
+- **`_drop_row_indices(self, indices: List[int])`**: Drops rows by their 0-based index.
 
 ## Usage Example
 ```python
@@ -138,11 +141,15 @@ rules = {
             "multiplier": 0.05,
             "trigger_values": [0, None] # Calculate tax if it's missing or 0
         }
-    ]
+    ],
+    'split_rules': {'target': '商户单号', 
+                    'delimiter': '_', 
+                    'new_headers': ['Prefix', 'Order ID']},
+    'indices_to_drop': [0], 
 }
 
 # Define Order
-order = ["rename", "drop_cols", "drop_rows", "filter_rows", "conditional_math", "handle_na"]
+order = ["rename", "drop_cols", "drop_rows", "filter_rows", "conditional_math", "handle_na", "split", "drop_indices"]
 
 # Execute
 cleaned_df = filter_tool.apply_filters(rules, order)
