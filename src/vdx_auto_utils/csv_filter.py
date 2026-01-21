@@ -19,8 +19,12 @@ class CSVFilter:
         elif isinstance(input_source, str):
             # Scenario B: Initializing from a local CSV file path
             print(f"📂 Loading data from path: {input_source}")
+            excel_extensions = ('.xlsx', '.xls', '.xlt', '.xltx', '.xlsm')
             try:
-                self.df = pd.read_csv(input_source, low_memory=False)
+                if input_source.lower.endswith(excel_extensions):
+                    self.df = pd.read_excel(input_source)
+                elif input_source.lower.endswith(('.csv')):
+                    self.read_csv(input_source, low_memory=False)
             except FileNotFoundError:
                 traceback.print_exc()
                 raise FileNotFoundError(f"Input CSV file not found at: {input_source}")
@@ -31,10 +35,8 @@ class CSVFilter:
         else:
             raise TypeError("Input must be either a file path (string) or a Pandas DataFrame.")
 
-        # Common initialization logic
         self.initial_rows = len(self.df)
             
-    # --- PRIVATE HELPER METHODS FOR EACH OPERATION ---
     def _apply_renames(self, rename_map: Dict[str, str]):
         """Helper for column renaming."""
         print(f"-> Applying Column Renames: {rename_map}")
@@ -219,8 +221,7 @@ class CSVFilter:
             self.df[target] = pd.to_numeric(self.df[target], errors='coerce')
             self.df[source] = pd.to_numeric(self.df[source], errors='coerce')
 
-            # --- 2. Build the Mask (UPDATED) ---
-            # Check for Wildcard: If triggers is '*' or contains '*', select ALL rows
+            # 2. Build the Mask 
             if triggers == '*' or (isinstance(triggers, list) and '*' in triggers):
                 print(f"   ⚡ Wildcard detected. Applying to ALL rows.")
                 mask = pd.Series(True, index=self.df.index)
