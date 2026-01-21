@@ -1,4 +1,4 @@
-# Dictionary
+# Library
 
 This project provides a robust, reusable automation pipeline for extracting data from CSV files, applying configurable filters and transformations, and uploading the cleaned data to Google Sheets.
 
