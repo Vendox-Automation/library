@@ -9,4 +9,5 @@ __all__ = [
     "split_dataframe",
     "DriveManager",
     "GoogleSheetUploader",
+    "TelegramBot",
 ]
