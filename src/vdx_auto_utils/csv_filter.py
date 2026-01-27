@@ -217,6 +217,10 @@ class CSVFilter:
                 print(f"Warning: Columns {target} or {source} not found. Skipping math rule.")
                 continue
 
+            if target not in self.df.columns:
+                print(f"   -> Creating new target column: '{target}'")
+                self.df[target] = 0.0
+            
             # 1. Clean data to ensure we can do math
             self.df[target] = pd.to_numeric(self.df[target], errors='coerce')
             self.df[source] = pd.to_numeric(self.df[source], errors='coerce')
