@@ -3,6 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 import re 
+import time
 import socket
 import traceback
 from typing import List, Dict, Any, Union
@@ -155,23 +156,38 @@ class GoogleSheetUploader:
                 include_header=include_header 
             )
 
-            # Calculate how much space we need vs what we have
+            # --- CRITICAL FIX: RESIZE COLUMNS FIRST ---
+            # If we are adding 100k rows, we MUST shrink columns first to avoid hitting the 10M cell limit.
+            required_cols = len(dataframe.columns)
+            current_sheet_cols = worksheet.col_count
+            
+            # Optimization: If the sheet is wider than we need, shrink it NOW to free up space.
+            # If it's too narrow, expand it NOW so the data fits.
+            if required_cols != current_sheet_cols:
+                 print(f"↔️ Optimizing columns: {current_sheet_cols} -> {required_cols}")
+                 worksheet.resize(cols=required_cols)
+                 time.sleep(2) # Short pause for API stability
+
+            # --- AUTO-RESIZE ROWS ---
             num_rows_to_upload = len(data_to_upload)
             required_total_rows = start_row_int + num_rows_to_upload
-            
-            # Check Rows
             current_sheet_rows = worksheet.row_count
+            
             if required_total_rows > current_sheet_rows:
-                rows_to_add = required_total_rows - current_sheet_rows + 500 # Add buffer
-                print(f"📉 Resizing sheet: Adding {rows_to_add} rows (Current: {current_sheet_rows} -> New Total: {current_sheet_rows + rows_to_add})")
-                worksheet.add_rows(rows_to_add)
-
-            # Check Columns (Basic check based on dataframe width)
-            current_sheet_cols = worksheet.col_count
-            required_cols = len(dataframe.columns)
-            if required_cols > current_sheet_cols:
-                print(f"↔️ Resizing sheet: Extending columns to {required_cols}")
-                worksheet.resize(rows=worksheet.row_count, cols=required_cols)
+                rows_to_add = required_total_rows - current_sheet_rows + 500 # Buffer
+                
+                # Check Limit Prediction
+                predicted_cells = (current_sheet_rows + rows_to_add) * required_cols
+                if predicted_cells > 9500000:
+                    print(f"⚠️ WARNING: This upload will push the sheet to {predicted_cells} cells (Limit: 10M).")
+                
+                print(f"📉 Resizing sheet: Adding {rows_to_add} rows...")
+                try:
+                    worksheet.add_rows(rows_to_add)
+                except Exception as resize_err:
+                    if "10000000 cells" in str(resize_err):
+                        raise Exception("❌ SHEET FULL: Cannot add rows. The Google Sheet has hit the 10 Million cell limit. Please archive old data or use a new sheet.")
+                    raise resize_err
 
             # 4. Clear (only if NOT appending and requested)
             if clear_before_upload and upload_start_cell.upper() != "APPEND":
@@ -179,18 +195,25 @@ class GoogleSheetUploader:
                 worksheet.clear()
 
             # 5. Upload
-            print(f"Uploading to {worksheet_name} at {start_cell}...")
-            worksheet.update(start_cell, data_to_upload, value_input_option='USER_ENTERED')
+            print(f"Uploading {len(data_to_upload)} rows to {worksheet_name} at {start_cell}...")
+            
+            # Chunked upload for massive files (prevents timeout)
+            chunk_size = 5000
+            if len(data_to_upload) > chunk_size:
+                print(f"   ℹ️ Large file detected. Uploading in chunks of {chunk_size}...")
+                for i in range(0, len(data_to_upload), chunk_size):
+                    chunk = data_to_upload[i : i + chunk_size]
+                    # Calculate chunk start row
+                    chunk_start_row = start_row_int + i
+                    chunk_range = f"A{chunk_start_row}"
+                    worksheet.update(chunk_range, chunk, value_input_option='USER_ENTERED')
+                    print(f"      ✅ Uploaded rows {i} to {i+len(chunk)}")
+                    time.sleep(1)
+            else:
+                worksheet.update(start_cell, data_to_upload, value_input_option='USER_ENTERED')
             
             print("✨ Upload complete!")
-            print(f"Data uploaded to: {spreadsheet.url}")
 
-        except gspread.WorksheetNotFound:
-            print(f"Error: Worksheet '{worksheet_name}' not found in '{spreadsheet_id}'.")
-            traceback.print_exc()
-        except gspread.SpreadsheetNotFound:
-            print(f"Error: Spreadsheet '{spreadsheet_id}' not found. Check name and Service Account permissions.")
-            traceback.print_exc()
         except Exception as e:
             print(f"An unexpected error occurred during the upload process: {e}")
             traceback.print_exc()

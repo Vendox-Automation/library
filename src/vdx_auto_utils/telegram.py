@@ -1,5 +1,6 @@
 import requests
 import logging
+import os
 
 # Configure basic logging to catch errors
 logging.basicConfig(level=logging.INFO)
@@ -60,4 +61,52 @@ class TelegramBot:
             logger.error(f"Failed to send Telegram message: {e}")
             if response is not None:
                 logger.error(f"Response: {response.text}")
+            return None
+
+    def send_document(self, group_id: str, file_path: str, caption: str = None, topic_id: int = None):
+        """
+        Sends a file (Document, Photo, or Video) to a specific group or topic.
+        Automatically handles different media types and enforces the 50MB limit.
+        """
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return None
+
+        # Check 50MB limit (standard Bot API constraint)
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        if file_size_mb > 50:
+            logger.error(f"File too large ({file_size_mb:.2f}MB). Standard API limit is 50MB.")
+            return None
+
+        # Determine method and payload key based on file extension
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in ['.jpg', '.jpeg', '.png']:
+            method = "sendPhoto"
+            file_key = "photo"
+        elif ext in ['.mp4', '.mov']:
+            method = "sendVideo"
+            file_key = "video"
+        else:
+            method = "sendDocument"
+            file_key = "document"
+
+        endpoint = f"{self.base_url}/{method}"
+        
+        payload = {"chat_id": group_id}
+        if caption:
+            payload["caption"] = caption
+        if topic_id:
+            payload["message_thread_id"] = topic_id
+
+        try:
+            with open(file_path, 'rb') as f:
+                files = {file_key: f}
+                response = requests.post(endpoint, data=payload, files=files, timeout=60)
+                response.raise_for_status()
+                
+            logger.info(f"File '{os.path.basename(file_path)}' sent via {method}")
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to send file: {e}")
             return None
