@@ -163,7 +163,7 @@ class GoogleSheetUploader:
             
             # Optimization: If the sheet is wider than we need, shrink it NOW to free up space.
             # If it's too narrow, expand it NOW so the data fits.
-            if required_cols != current_sheet_cols:
+            if required_cols > current_sheet_cols:
                  print(f"↔️ Optimizing columns: {current_sheet_cols} -> {required_cols}")
                  worksheet.resize(cols=required_cols)
                  time.sleep(2) # Short pause for API stability
