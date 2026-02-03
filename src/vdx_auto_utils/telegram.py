@@ -131,3 +131,17 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Error fetching updates: {e}")
             return []
+    
+    def answer_callback_query(self, callback_query_id: str):
+        """
+        Acknowledges a callback query to remove the loading state from the button.
+
+        args:
+            callback_query_id (str): The unique identifier for the query to be answered.
+        """
+        endpoint = f"{self.base_url}/answerCallbackQuery"
+        payload = {"callback_query_id": callback_query_id}
+        try:
+            requests.post(endpoint, data=payload, timeout=10)
+        except Exception as e:
+            logger.error(f"Error answering callback query: {e}")
