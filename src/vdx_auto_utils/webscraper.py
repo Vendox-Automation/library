@@ -1,0 +1,161 @@
+import logging
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+logger = logging.getLogger(__name__)
+
+class Scraper:
+    def __init__(self, headless=True):
+        """
+        Initializes the Scraper with a pre-configured Chrome driver.
+        
+        Args:
+            headless (bool): If True, runs the browser without a GUI. Defaults to True.
+        """
+        self.driver = self.setup_driver(headless=headless)
+
+    def setup_driver(self, headless=True):
+        """
+        Configures Chrome options for anti-detection and stability.
+        
+        Args:
+            headless (bool): Whether to run in headless mode.
+        Returns:
+            webdriver.Chrome: The initialized driver instance.
+        """
+        opts = Options()
+        if headless:
+            opts.add_argument("--headless=new") 
+        
+        opts.add_argument("--disable-infobars")
+        opts.add_argument("--guest")
+        opts.add_argument("--disable-notifications")
+        opts.add_argument("--ignore-certificate-errors")
+        opts.add_argument("--disable-blink-features=AutomationControlled")
+        opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+        opts.add_experimental_option("useAutomationExtension", False)
+        
+        opts.add_argument(
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+        opts.add_argument("--disable-gpu")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=opts)
+        driver.implicitly_wait(2)
+        return driver
+
+    # Helper methods (JS)
+    def _fill_js(self, element, value):
+        """Injects value via JS and dispatches input/change events."""
+        self.driver.execute_script("arguments[0].value = arguments[1];", element, value)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", element)
+        self.driver.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", element)
+
+    def _click_js(self, element):
+        """Clicks an element directly via JavaScript."""
+        self.driver.execute_script("arguments[0].click();", element)
+
+    def find_input(self, xpath, timeout=10):
+        """
+        Waits for an input field to appear and returns it.
+        
+        Args:
+            xpath (str): The XPath of the element.
+            timeout (int): Seconds to wait. Defaults to 10.
+        Returns:
+            WebElement or None: The found element or None if not found.
+        """
+        try:
+            return WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_element_located((By.XPATH, xpath))
+            )
+        except Exception as e:
+            logger.error(f"Input not found at {xpath}: {e}")
+            return None
+
+    def fill_input(self, element, value, use_js=False):
+        """
+        Clears and fills an input field with Selenium or JS injection.
+        
+        Args:
+            element (WebElement): The Selenium element to fill.
+            value (str): The text to enter.
+            use_js (bool): If True, bypasses Selenium and uses JS immediately.
+        """
+        if not element:
+            logger.info("No element provided to fill.")
+            return
+
+        if use_js:
+            self._fill_js(element, value)
+        else:
+            try:
+                element.clear()
+                element.send_keys(value)
+            except Exception as e:
+                logger.warning(f"Standard fill failed, falling back to JS: {e}")
+                self._fill_js(element, value)
+
+    def find_btn(self, xpath, timeout=10):
+        """
+        Waits for a button to be clickable and returns it.
+        
+        Args:
+            xpath (str): The XPath of the button.
+            timeout (int): Seconds to wait. Defaults to 10.
+        Returns:
+            WebElement or None: The found button or None if not found.
+        """
+        try:
+            return WebDriverWait(self.driver, timeout).until(
+                EC.element_to_be_clickable((By.XPATH, xpath))
+            )
+        except Exception as e:
+            logger.error(f"Button not clickable at {xpath}: {e}")
+            return None
+
+    def click_btn(self, element, use_js=False):
+        """
+        Clicks an element using Selenium or JavaScript.
+        
+        Args:
+            element (WebElement): The Selenium element to click.
+            use_js (bool): If True, bypasses Selenium and uses JS immediately.
+        """
+        if not element:
+            logger.info("No element provided to click.")
+            return
+
+        if use_js:
+            self._click_js(element)
+        else:
+            try:
+                element.click()
+            except Exception as e:
+                logger.warning(f"Standard click intercepted, falling back to JS: {e}")
+                self._click_js(element)
+
+    def find_and_click_btn(self, xpath, timeout=10, use_js=False):
+        """
+        Helper to find and click in one step.
+        
+        Args:
+            xpath (str): The XPath to find.
+            timeout (int): Seconds to wait.
+            use_js (bool): Whether to use JS for the click.
+        """
+        btn = self.find_btn(xpath, timeout)
+        if btn:
+            self.click_btn(btn, use_js=use_js)
+
+    def quit(self):
+        """Closes the driver session."""
+        self.driver.quit()
