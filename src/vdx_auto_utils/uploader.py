@@ -41,12 +41,17 @@ class GoogleSheetUploader:
         self.client = gspread.authorize(self.creds)
         print("Authentication successful.")
 
-    # --- HELPER METHOD ---
+    # HELPER METHOD
     def _prepare_data_for_gspread(self, 
                                     df: pd.DataFrame, 
                                     include_header: bool = True) -> List[List[Any]]:
         """
         Converts a Pandas DataFrame into the list-of-lists format required by gspread.
+        Args:
+            df: The Pandas DataFrame to convert.
+            include_header: If True, includes the DataFrame's header row.
+        Returns:
+            A list of lists representing the DataFrame's data.
         """
         
         df = df.fillna('')
@@ -62,7 +67,7 @@ class GoogleSheetUploader:
         print(f"-> Data prepared. Total rows: {len(prepared_data)}")    
         return prepared_data
 
-    # --- HELPER: FORMATTING ---
+    # HELPER: FORMATTING
     def _format_dataframe_to_gsheet_layout(self, 
                                             df: pd.DataFrame, 
                                             layout_map: Dict[str, Union[str, None]]) -> pd.DataFrame:
@@ -156,19 +161,17 @@ class GoogleSheetUploader:
                 include_header=include_header 
             )
 
-            # --- CRITICAL FIX: RESIZE COLUMNS FIRST ---
             # If we are adding 100k rows, we MUST shrink columns first to avoid hitting the 10M cell limit.
             required_cols = len(dataframe.columns)
             current_sheet_cols = worksheet.col_count
             
-            # Optimization: If the sheet is wider than we need, shrink it NOW to free up space.
             # If it's too narrow, expand it NOW so the data fits.
             if required_cols > current_sheet_cols:
                  print(f"↔️ Optimizing columns: {current_sheet_cols} -> {required_cols}")
                  worksheet.resize(cols=required_cols)
                  time.sleep(2) # Short pause for API stability
 
-            # --- AUTO-RESIZE ROWS ---
+            # Resizing rows
             num_rows_to_upload = len(data_to_upload)
             required_total_rows = start_row_int + num_rows_to_upload
             current_sheet_rows = worksheet.row_count
@@ -223,6 +226,14 @@ class GoogleSheetUploader:
         """
         Overridden method: Uses batch_update and no internal try/catch
         so errors properly trigger the main retry loop.
+        Args:
+            dataframe: The Pandas DataFrame containing the data to upload.
+            spreadsheet_id: The ID of the Google Sheet.
+            worksheet_name: The specific tab name.
+            gsheet_layout_map: A dict mapping GSheet column letters (A, B, C) to 
+                               DataFrame column names.
+            start_row: The starting row index (1-based).
+            append: If True, appends data after existing content.
         """
         if not gsheet_layout_map:
             print("⚠️ No layout map provided. Skipping.")
@@ -231,7 +242,7 @@ class GoogleSheetUploader:
         spreadsheet = self.client.open_by_key(spreadsheet_id)
         worksheet = spreadsheet.worksheet(worksheet_name)
         
-        # --- 1. DETERMINE START ROW ---
+        # DETERMINE START ROW ---
         final_start_row = start_row
         if append:
             anchor_col = list(gsheet_layout_map.keys())[0]
@@ -264,7 +275,7 @@ class GoogleSheetUploader:
                 'values': values
             })
 
-        # --- 4. EXECUTE SINGLE BATCH CALL ---
+        # EXECUTE SINGLE BATCH CALL
         if batch_data:
             worksheet.batch_update(batch_data, value_input_option='USER_ENTERED')
             print(f"✅ Batch updated {len(dataframe)} rows in '{worksheet_name}'")
