@@ -1,6 +1,7 @@
 import requests
 import logging
 import os
+import json
 
 # Configure basic logging to catch errors
 logging.basicConfig(level=logging.INFO)
@@ -109,4 +110,38 @@ class TelegramBot:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to send file: {e}")
+            return None
+    
+    def send_interactive_message(self, group_id: str, message: str, buttons: list, topic_id: int = None):
+        """
+        Sends a message with Inline Keyboard buttons.
+        
+        Args:
+            group_id (str): The Chat ID.
+            message (str): The text content above the buttons.
+            buttons (list): A list of lists representing rows of buttons.
+                            Example: [[{"text": "Option 1", "callback_data": "1"}, {"text": "Option 2", "callback_data": "2"}]]
+            topic_id (int, optional): The 'message_thread_id' for forum topics.
+        """
+        endpoint = f"{self.base_url}/sendMessage"
+        
+        # Construct the inline keyboard structure
+        reply_markup = {"inline_keyboard": buttons}
+        
+        payload = {
+            "chat_id": group_id,
+            "text": message,
+            "parse_mode": "HTML",
+            "reply_markup": json.dumps(reply_markup) # Must be a JSON-serialized string
+        }
+
+        if topic_id:
+            payload["message_thread_id"] = topic_id
+
+        try:
+            response = requests.post(endpoint, data=payload, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to send interactive message: {e}")
             return None
