@@ -66,6 +66,11 @@ class TelegramBot:
         """
         Sends a file (Document, Photo, or Video) to a specific group or topic.
         Automatically handles different media types and enforces the 50MB limit.
+        args:
+            group_id (str): The Chat ID of the group or channel.
+            file_path (str): The local path to the file to be sent.
+            caption (str, optional): An optional caption for the file.
+            topic_id (int, optional): The 'message_thread_id' for forum topics.
         """
         if not os.path.exists(file_path):
             logger.error(f"File not found: {file_path}")
@@ -109,3 +114,20 @@ class TelegramBot:
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to send file: {e}")
             return None
+    
+    def get_updates(self, offset=None, timeout=30):
+        """
+        Polls the Telegram API for new updates (messages, button clicks).
+
+        args:
+            offset (int, optional): Identifier of the first update to be returned.
+            timeout (int): Timeout in seconds
+        """
+        endpoint = f"{self.base_url}/getUpdates"
+        params = {"timeout": timeout, "offset": offset}
+        try:
+            response = requests.get(endpoint, params=params, timeout=timeout + 5)
+            return response.json().get("result", [])
+        except Exception as e:
+            logger.error(f"Error fetching updates: {e}")
+            return []
