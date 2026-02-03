@@ -22,46 +22,44 @@ class TelegramBot:
         self.api_token = api_token
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
 
-    def send_message(self, group_id: str, message: str, topic_id: int = None, reply_to_message_id: int = None):
+    def send_message(self, group_id: str, message: str, topic_id: int = None, 
+                     reply_to_message_id: int = None, buttons: list = None):
         """
-        Sends a text message to a specific group, topic, or as a reply.
-
-        Args:
-            group_id (str): The Chat ID (e.g., "-100123456789").
-            message (str): The actual text content to send.
-            topic_id (int, optional): The 'message_thread_id' for forum topics. Defaults to None.
-            reply_to_message_id (int, optional): The ID of a message to reply to. Defaults to None.
-
-        Returns:
-            dict: The JSON response from the Telegram API if successful, else None.
+        Sends a text message with optional interactive buttons.
+        args:
+            group_id (str): The Chat ID of the group or channel.
+            message (str): The text content of the message.
+            topic_id (int, optional): The 'message_thread_id' for forum topics.
+            reply_to_message_id (int, optional): If set, the message will be a reply to this message ID.
+            buttons (list, optional): A list of lists representing rows of buttons for an inline keyboard.
         """
         endpoint = f"{self.base_url}/sendMessage"
         
         payload = {
             "chat_id": group_id,
             "text": message,
-            "parse_mode": "HTML"  # Optional: allows bold/italic/links in message
+            "parse_mode": "HTML"
         }
 
-        # Handle Topics (Forum Threads)
         if topic_id:
             payload["message_thread_id"] = topic_id
 
-        # Handle Replies
         if reply_to_message_id:
             payload["reply_to_message_id"] = reply_to_message_id
 
+        # Added: Handle buttons if provided
+        if buttons:
+            payload["reply_markup"] = json.dumps({"inline_keyboard": buttons})
+
         try:
             response = requests.post(endpoint, data=payload, timeout=10)
-            response.raise_for_status() # Raises error for 4xx/5xx status codes
-            
-            logger.info(f"Message sent to {group_id} (Topic: {topic_id})")
+            response.raise_for_status()
+            logger.info(f"Message sent to {group_id}")
             return response.json()
-
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send Telegram message: {e}")
-            if response is not None:
-                logger.error(f"Response: {response.text}")
+            # Enhanced error logging to see the exact description from Telegram
+            error_desc = response.json().get('description') if response else "No response"
+            logger.error(f"Failed to send Telegram message: {e} | Detail: {error_desc}")
             return None
 
     def send_document(self, group_id: str, file_path: str, caption: str = None, topic_id: int = None):
