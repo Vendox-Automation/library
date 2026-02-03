@@ -23,15 +23,15 @@ class TelegramBot:
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
 
     def send_message(self, group_id: str, message: str, topic_id: int = None, 
-                     reply_to_message_id: int = None, buttons: list = None):
+                     buttons: list = None, reply_to_message_id: int = None):
         """
         Sends a text message with optional interactive buttons.
         args:
             group_id (str): The Chat ID of the group or channel.
             message (str): The text content of the message.
             topic_id (int, optional): The 'message_thread_id' for forum topics.
-            reply_to_message_id (int, optional): If set, the message will be a reply to this message ID.
             buttons (list, optional): A list of lists representing rows of buttons for an inline keyboard.
+            reply_to_message_id (int, optional): If set, the message will be a reply to this message ID.
         """
         endpoint = f"{self.base_url}/sendMessage"
         
@@ -108,38 +108,4 @@ class TelegramBot:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to send file: {e}")
-            return None
-    
-    def send_interactive_message(self, group_id: str, message: str, buttons: list, topic_id: int = None):
-        """
-        Sends a message with Inline Keyboard buttons.
-        
-        Args:
-            group_id (str): The Chat ID.
-            message (str): The text content above the buttons.
-            buttons (list): A list of lists representing rows of buttons.
-                            Example: [[{"text": "Option 1", "callback_data": "1"}, {"text": "Option 2", "callback_data": "2"}]]
-            topic_id (int, optional): The 'message_thread_id' for forum topics.
-        """
-        endpoint = f"{self.base_url}/sendMessage"
-        
-        # Construct the inline keyboard structure
-        reply_markup = {"inline_keyboard": buttons}
-        
-        payload = {
-            "chat_id": group_id,
-            "text": message,
-            "parse_mode": "HTML",
-            "reply_markup": json.dumps(reply_markup) # Must be a JSON-serialized string
-        }
-
-        if topic_id:
-            payload["message_thread_id"] = topic_id
-
-        try:
-            response = requests.post(endpoint, data=payload, timeout=10)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send interactive message: {e}")
             return None
