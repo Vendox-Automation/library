@@ -5,6 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,43 @@ class Scraper:
             except Exception as e:
                 logger.warning(f"Standard fill failed, falling back to JS: {e}")
                 self._fill_js(element, value)
+
+    def get_text(self, xpath, timeout=10):
+        """
+        Waits for an element and returns its text.
+        
+        Args:
+            xpath (str): The XPath of the element.
+            timeout (int): Seconds to wait. Defaults to 10.
+        Returns:
+            str or None: The text content or None if not found.
+        """
+        try:
+            element = WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_element_located((By.XPATH, xpath))
+            )
+            return element.text.strip()
+        except Exception as e:
+            logger.error(f"Could not get text from {xpath}: {e}")
+            return None
+
+    def select_option(self, xpath, option_text):
+        """
+        Selects an option from a dropdown by visible text.
+        
+        Args:
+            xpath (str): The XPath of the select element.
+            option_text (str): The visible text of the option to select.
+        Returns:
+            None
+        """
+        try:
+            element = self.find_btn(xpath) # Wait for it to be clickable
+            select = Select(element)
+            select.select_by_visible_text(option_text)
+            logger.info(f"Selected '{option_text}' from dropdown.")
+        except Exception as e:
+            logger.error(f"Failed to select option '{option_text}': {e}")
 
     def find_btn(self, xpath, timeout=10):
         """
