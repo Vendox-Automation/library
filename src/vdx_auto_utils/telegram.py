@@ -26,7 +26,7 @@ class TelegramBot:
                      buttons: list = None, reply_to_message_id: int = None):
         """
         Sends a text message with optional interactive buttons.
-        args:
+        Args:
             group_id (str): The Chat ID of the group or channel.
             message (str): The text content of the message.
             topic_id (int, optional): The 'message_thread_id' for forum topics.
@@ -66,7 +66,7 @@ class TelegramBot:
         """
         Sends a file (Document, Photo, or Video) to a specific group or topic.
         Automatically handles different media types and enforces the 50MB limit.
-        args:
+        Args:
             group_id (str): The Chat ID of the group or channel.
             file_path (str): The local path to the file to be sent.
             caption (str, optional): An optional caption for the file.
@@ -119,7 +119,7 @@ class TelegramBot:
         """
         Polls the Telegram API for new updates (messages, button clicks).
 
-        args:
+        Args:
             offset (int, optional): Identifier of the first update to be returned.
             timeout (int): Timeout in seconds
         """
@@ -136,7 +136,7 @@ class TelegramBot:
         """
         Acknowledges a callback query to remove the loading state from the button.
 
-        args:
+        Args:
             callback_query_id (str): The unique identifier for the query to be answered.
         """
         endpoint = f"{self.base_url}/answerCallbackQuery"

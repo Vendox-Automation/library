@@ -122,6 +122,8 @@ class GoogleSheetUploader:
             upload_start_cell: The starting cell (e.g., "A1") or "APPEND" to add after existing data.
             include_header: If True, includes the DataFrame's header row in the upload.
             gsheet_layout_map: If there is a specific layout mapping for GSheet columns then follow it, else upload as-is.
+        Returns:
+            None
         """
 
         # 0. Check if a layout map was provided and apply it
@@ -234,6 +236,8 @@ class GoogleSheetUploader:
                                DataFrame column names.
             start_row: The starting row index (1-based).
             append: If True, appends data after existing content.
+        Returns:
+            None
         """
         if not gsheet_layout_map:
             print("⚠️ No layout map provided. Skipping.")
