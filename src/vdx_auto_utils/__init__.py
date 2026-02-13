@@ -13,4 +13,5 @@ __all__ = [
     "GoogleSheetUploader",
     "TelegramBot",
     "Scraper",
+    "GoogleSheetsListener",
 ]
