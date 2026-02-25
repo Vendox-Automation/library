@@ -132,15 +132,22 @@ class TelegramBot:
             logger.error(f"Error fetching updates: {e}")
             return []
     
-    def answer_callback_query(self, callback_query_id: str):
+    def answer_callback_query(self, callback_query_id: str, text: str = None, show_alert: bool = False):
         """
-        Acknowledges a callback query to remove the loading state from the button.
+        Acknowledges a callback query and optionally shows a popup alert.
 
         Args:
             callback_query_id (str): The unique identifier for the query to be answered.
+            text (str, optional): Text of the notification. If not specified, nothing will be shown.
+            show_alert (bool, optional): If true, an alert will be shown instead of a notification at the top of the chat screen.
         """
         endpoint = f"{self.base_url}/answerCallbackQuery"
         payload = {"callback_query_id": callback_query_id}
+        
+        if text:
+            payload["text"] = text
+            payload["show_alert"] = show_alert
+
         try:
             requests.post(endpoint, data=payload, timeout=10)
         except Exception as e:
