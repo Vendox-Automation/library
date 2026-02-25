@@ -150,5 +150,32 @@ class TelegramBot:
 
         try:
             requests.post(endpoint, data=payload, timeout=10)
-        except Exception as e:
+        except Exception as e:  
             logger.error(f"Error answering callback query: {e}")
+
+    def get_chat_admins(self, group_id: str) -> list:
+        """
+        Fetches the current list of administrator user IDs for a specific chat.
+        Args:
+            group_id (str): The Chat ID of the group or channel.
+        Returns:
+            list: A list of user IDs (integers) who are administrators of the chat.
+        """
+        endpoint = f"{self.base_url}/getChatAdministrators"
+        payload = {"chat_id": group_id}
+        try:
+            response = requests.post(endpoint, data=payload, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("ok"):
+                # Extract and return just the numeric user IDs of the admins
+                admin_ids = [admin["user"]["id"] for admin in data["result"]]
+                return admin_ids
+            else:
+                logger.error(f"Telegram API Error: {data.get('description')}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error fetching admins: {e}")
+            return []
