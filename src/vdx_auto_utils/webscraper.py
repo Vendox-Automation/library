@@ -64,6 +64,12 @@ class Scraper:
         """Clicks an element directly via JavaScript."""
         self.driver.execute_script("arguments[0].click();", element)
 
+    def _click_actions(self, element):
+        """Scrolls element into view then clicks via ActionChains (bypasses overlays)."""
+        from selenium.webdriver.common.action_chains import ActionChains
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        ActionChains(self.driver).move_to_element(element).click().perform()
+
     def find_input(self, xpath, timeout=10):
         """
         Waits for an input field to appear and returns it.
@@ -162,11 +168,13 @@ class Scraper:
 
     def click_btn(self, element, use_js=False):
         """
-        Clicks an element using Selenium or JavaScript.
-        
+        Clicks an element using Selenium, ActionChains, or JavaScript — in that order.
+        If use_js=True, skips straight to JS. Otherwise cascades through all three
+        methods until one succeeds.
+
         Args:
             element (WebElement): The Selenium element to click.
-            use_js (bool): If True, bypasses Selenium and uses JS immediately.
+            use_js (bool): If True, bypasses Selenium and ActionChains, uses JS immediately.
         """
         if not element:
             logger.info("No element provided to click.")
@@ -174,12 +182,21 @@ class Scraper:
 
         if use_js:
             self._click_js(element)
-        else:
-            try:
-                element.click()
-            except Exception as e:
-                logger.warning(f"Standard click intercepted, falling back to JS: {e}")
-                self._click_js(element)
+            return
+
+        try:
+            element.click()
+            return
+        except Exception as e:
+            logger.warning(f"Standard click failed, trying ActionChains: {e}")
+
+        try:
+            self._click_actions(element)
+            return
+        except Exception as e:
+            logger.warning(f"ActionChains click failed, falling back to JS: {e}")
+
+        self._click_js(element)
 
     def find_and_click_btn(self, xpath, timeout=10, use_js=False):
         """
