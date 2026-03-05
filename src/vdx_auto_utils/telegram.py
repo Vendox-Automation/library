@@ -57,8 +57,10 @@ class TelegramBot:
             logger.info(f"Message sent to {group_id}")
             return response.json()
         except requests.exceptions.RequestException as e:
-            # Enhanced error logging to see the exact description from Telegram
-            error_desc = response.json().get('description') if response else "No response"
+            try:
+                error_desc = response.json().get('description', 'No description')
+            except Exception:
+                error_desc = "No response"
             logger.error(f"Failed to send Telegram message: {e} | Detail: {error_desc}")
             return None
 
