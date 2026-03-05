@@ -211,6 +211,104 @@ class Scraper:
         if btn:
             self.click_btn(btn, use_js=use_js)
 
+    def scan_and_close_popups(self, keywords: list) -> int:
+        """
+        Closes visible popups by scanning all interactive elements and clicking
+        any whose attributes match the given keywords. Runs entirely in JS to
+        bypass modal/overlay interception.
+
+        Args:
+            keywords (list[str]): Words matched against id/class/aria-label/title/alt/innerText.
+        Returns:
+            int: Number of elements clicked.
+        """
+        try:
+            self.driver.execute_script("""
+                const chatWidget = document.querySelector("#chat-widget-container");
+                if (chatWidget) {
+                    chatWidget.style.display = "none";
+                    chatWidget.style.visibility = "hidden";
+                    chatWidget.remove();
+                }
+            """)
+        except Exception as e:
+            logger.warning(f"Failed to suppress live chat widget: {e}")
+
+        script = """
+            const keywords = arguments[0];
+            const regex = new RegExp("\\\\b(" + keywords.join("|") + ")\\\\b", "i");
+            let count = 0;
+
+            document.querySelectorAll("button,a,span,i,img,[role='button']").forEach(el => {
+                try {
+                    const combined = [
+                        el.id || "",
+                        el.className || "",
+                        el.getAttribute("aria-label") || "",
+                        el.getAttribute("title") || "",
+                        el.getAttribute("alt") || "",
+                        el.innerText || ""
+                    ].join(" ");
+                    if (regex.test(combined) && el.offsetParent !== null) {
+                        el.click();
+                        count++;
+                    }
+                } catch(e) {}
+            });
+
+            return count;
+        """
+        try:
+            result = self.driver.execute_script(script, keywords)
+            return result if isinstance(result, int) else 0
+        except Exception as e:
+            logger.error(f"scan_and_close_popups JS execution failed: {e}")
+            return 0
+
     def quit(self):
         """Closes the driver session."""
         self.driver.quit()
+
+class SpoofScraper:
+    def __init__(self, headless=True):
+        """
+        Initializes the Scraper with a pre-configured Chrome driver.
+        
+        Args:
+            headless (bool): If True, runs the browser without a GUI. Defaults to True.
+        """
+        self.driver = self.setup_driver(headless=headless)
+
+    def setup_driver(self, headless=True):
+        """
+        Configures Chrome options for anti-detection and stability.
+        
+        Args:
+            headless (bool): Whether to run in headless mode.
+        Returns:
+            webdriver.Chrome: The initialized driver instance.
+        """
+        opts = Options()
+        if headless:
+            opts.add_argument("--headless=new") 
+        
+        opts.add_argument("--disable-infobars")
+        opts.add_argument("--guest")
+        opts.add_argument("--disable-notifications")
+        opts.add_argument("--ignore-certificate-errors")
+        opts.add_argument("--disable-blink-features=AutomationControlled")
+        opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+        opts.add_experimental_option("useAutomationExtension", False)
+        
+        opts.add_argument(
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+        opts.add_argument("--disable-gpu")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=opts)
+        driver.implicitly_wait(2)
+        return driver
