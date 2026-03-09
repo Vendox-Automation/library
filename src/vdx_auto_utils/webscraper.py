@@ -10,16 +10,17 @@ from selenium.webdriver.support.ui import Select
 logger = logging.getLogger(__name__)
 
 class Scraper:
-    def __init__(self, headless=True):
+    def __init__(self, headless=True, window_size: tuple = (1920, 1080)):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
         
         Args:
             headless (bool): If True, runs the browser without a GUI. Defaults to True.
+            window_size (tuple): Takes a tuple of (width, height) to set the browser window size. Defaults to (1920, 1080).
         """
-        self.driver = self.setup_driver(headless=headless)
+        self.driver = self.setup_driver(headless=headless, window_size=window_size)
 
-    def setup_driver(self, headless=True):
+    def setup_driver(self, headless=True, window_size: tuple = (1920, 1080)):
         """
         Configures Chrome options for anti-detection and stability.
         
@@ -50,6 +51,7 @@ class Scraper:
         opts.add_argument("--disable-dev-shm-usage")
 
         driver = webdriver.Chrome(options=opts)
+        driver.set_window_size(*window_size)
         driver.implicitly_wait(2)
         return driver
 
@@ -67,7 +69,6 @@ class Scraper:
     def _click_actions(self, element):
         """Scrolls element into view then clicks via ActionChains (bypasses overlays)."""
         from selenium.webdriver.common.action_chains import ActionChains
-        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
         ActionChains(self.driver).move_to_element(element).click().perform()
 
     def find_input(self, xpath, timeout=10):
@@ -270,16 +271,16 @@ class Scraper:
         self.driver.quit()
 
 class SpoofScraper:
-    def __init__(self, headless=True):
+    def __init__(self, headless=True, window_size: tuple = (1920, 1080)):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
         
         Args:
             headless (bool): If True, runs the browser without a GUI. Defaults to True.
         """
-        self.driver = self.setup_driver(headless=headless)
+        self.driver = self.setup_driver(headless=headless, window_size=window_size)
 
-    def setup_driver(self, headless=True):
+    def setup_driver(self, headless=True, window_size: tuple = (1920, 1080)):
         """
         Configures Chrome options for anti-detection and stability.
         
@@ -310,5 +311,6 @@ class SpoofScraper:
         opts.add_argument("--disable-dev-shm-usage")
 
         driver = webdriver.Chrome(options=opts)
+        driver.set_window_size(*window_size)
         driver.implicitly_wait(2)
         return driver
