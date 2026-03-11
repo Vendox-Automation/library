@@ -10,7 +10,7 @@ from selenium.webdriver.support.ui import Select
 logger = logging.getLogger(__name__)
 
 class Scraper:
-    def __init__(self, headless=True, window_size: tuple = (1920, 1080)):
+    def __init__(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
         
@@ -18,9 +18,9 @@ class Scraper:
             headless (bool): If True, runs the browser without a GUI. Defaults to True.
             window_size (tuple): Takes a tuple of (width, height) to set the browser window size. Defaults to (1920, 1080).
         """
-        self.driver = self.setup_driver(headless=headless, window_size=window_size)
+        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, window_size=window_size)
 
-    def setup_driver(self, headless=True, window_size: tuple = (1920, 1080)):
+    def setup_driver(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
         """
         Configures Chrome options for anti-detection and stability.
         
@@ -49,6 +49,15 @@ class Scraper:
         opts.add_argument("--disable-gpu")
         opts.add_argument("--no-sandbox")
         opts.add_argument("--disable-dev-shm-usage")
+
+        # Camera/Mic Permissions via Preferences
+        if allow_media_perms:
+            prefs = {
+                "profile.default_content_setting_values.media_stream_camera": 1,
+                "profile.default_content_setting_values.media_stream_mic": 1,
+            }
+            opts.add_experimental_option("prefs", prefs)
+            opts.add_argument("--use-fake-ui-for-media-stream") # Auto-click "Allow" on the permission prompt
 
         driver = webdriver.Chrome(options=opts)
         driver.set_window_size(*window_size)
@@ -271,16 +280,16 @@ class Scraper:
         self.driver.quit()
 
 class SpoofScraper:
-    def __init__(self, headless=True, window_size: tuple = (1920, 1080)):
+    def __init__(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
         
         Args:
             headless (bool): If True, runs the browser without a GUI. Defaults to True.
         """
-        self.driver = self.setup_driver(headless=headless, window_size=window_size)
+        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, window_size=window_size)
 
-    def setup_driver(self, headless=True, window_size: tuple = (1920, 1080)):
+    def setup_driver(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
         """
         Configures Chrome options for anti-detection and stability.
         
@@ -309,6 +318,14 @@ class SpoofScraper:
         opts.add_argument("--disable-gpu")
         opts.add_argument("--no-sandbox")
         opts.add_argument("--disable-dev-shm-usage")
+
+        if allow_media_perms:
+            prefs = {
+                "profile.default_content_setting_values.media_stream_camera": 1,
+                "profile.default_content_setting_values.media_stream_mic": 1,
+            }
+            opts.add_experimental_option("prefs", prefs)
+            opts.add_argument("--use-fake-ui-for-media-stream")
 
         driver = webdriver.Chrome(options=opts)
         driver.set_window_size(*window_size)
