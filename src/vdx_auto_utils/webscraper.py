@@ -57,6 +57,7 @@ class Scraper:
                 "profile.default_content_setting_values.media_stream_mic": 1,
             }
             opts.add_experimental_option("prefs", prefs)
+            opts.add_argument("--use-fake-device-for-media-stream")
             opts.add_argument("--use-fake-ui-for-media-stream") # Auto-click "Allow" on the permission prompt
 
         driver = webdriver.Chrome(options=opts)
@@ -325,6 +326,7 @@ class SpoofScraper:
                 "profile.default_content_setting_values.media_stream_mic": 1,
             }
             opts.add_experimental_option("prefs", prefs)
+            opts.add_argument("--use-fake-device-for-media-stream")            
             opts.add_argument("--use-fake-ui-for-media-stream")
 
         driver = webdriver.Chrome(options=opts)
