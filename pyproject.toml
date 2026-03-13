@@ -4,9 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vdx_auto_utils"
-version = "0.4.10" #Update the version everytime an update is finalized
+version = "0.5.0" #Update the version everytime an update is finalized
 description = "Internal automation tools for Vendox"
-authors = [{name = "Potter", email = "potter@4896.co"}]
+authors = [
+    {name = "Potter", email = "potter@4896.co"},
+    {name = "Beckham", email = "beckham@4896.co"}
+]
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
@@ -18,7 +21,7 @@ dependencies = [
     "oauth2client",
     "selenium",
     "requests",
-    "openpyxl"
+    "psycopg2"
 ]
 
 [tool.setuptools.packages.find]
