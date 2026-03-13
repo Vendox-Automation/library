@@ -1,5 +1,7 @@
 import requests
 import logging
+import os
+import json
 
 # Configure basic logging to catch errors
 logging.basicConfig(level=logging.INFO)
@@ -20,44 +22,162 @@ class TelegramBot:
         self.api_token = api_token
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
 
-    def send_message(self, group_id: str, message: str, topic_id: int = None, reply_to_message_id: int = None):
+    def send_message(self, group_id: str, message: str, topic_id: int = None, 
+                     buttons: list = None, reply_to_message_id: int = None):
         """
-        Sends a text message to a specific group, topic, or as a reply.
-
+        Sends a text message with optional interactive buttons.
         Args:
-            group_id (str): The Chat ID (e.g., "-100123456789").
-            message (str): The actual text content to send.
-            topic_id (int, optional): The 'message_thread_id' for forum topics. Defaults to None.
-            reply_to_message_id (int, optional): The ID of a message to reply to. Defaults to None.
-
-        Returns:
-            dict: The JSON response from the Telegram API if successful, else None.
+            group_id (str): The Chat ID of the group or channel.
+            message (str): The text content of the message.
+            topic_id (int, optional): The 'message_thread_id' for forum topics.
+            buttons (list, optional): A list of lists representing rows of buttons for an inline keyboard.
+            reply_to_message_id (int, optional): If set, the message will be a reply to this message ID.
         """
         endpoint = f"{self.base_url}/sendMessage"
         
         payload = {
             "chat_id": group_id,
             "text": message,
-            "parse_mode": "HTML"  # Optional: allows bold/italic/links in message
+            "parse_mode": "HTML"
         }
 
-        # Handle Topics (Forum Threads)
         if topic_id:
             payload["message_thread_id"] = topic_id
 
-        # Handle Replies
         if reply_to_message_id:
             payload["reply_to_message_id"] = reply_to_message_id
 
+        # Added: Handle buttons if provided
+        if buttons:
+            payload["reply_markup"] = json.dumps({"inline_keyboard": buttons})
+
         try:
             response = requests.post(endpoint, data=payload, timeout=10)
-            response.raise_for_status() # Raises error for 4xx/5xx status codes
-            
-            logger.info(f"Message sent to {group_id} (Topic: {topic_id})")
+            response.raise_for_status()
+            logger.info(f"Message sent to {group_id}")
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            try:
+                error_desc = response.json().get('description', 'No description')
+            except Exception:
+                error_desc = "No response"
+            logger.error(f"Failed to send Telegram message: {e} | Detail: {error_desc}")
+            return None
+
+    def send_document(self, group_id: str, file_path: str, caption: str = None, topic_id: int = None):
+        """
+        Sends a file (Document, Photo, or Video) to a specific group or topic.
+        Automatically handles different media types and enforces the 50MB limit.
+        Args:
+            group_id (str): The Chat ID of the group or channel.
+            file_path (str): The local path to the file to be sent.
+            caption (str, optional): An optional caption for the file.
+            topic_id (int, optional): The 'message_thread_id' for forum topics.
+        """
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return None
+
+        # Check 50MB limit (standard Bot API constraint)
+        file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        if file_size_mb > 50:
+            logger.error(f"File too large ({file_size_mb:.2f}MB). Standard API limit is 50MB.")
+            return None
+
+        # Determine method and payload key based on file extension
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in ['.jpg', '.jpeg', '.png']:
+            method = "sendPhoto"
+            file_key = "photo"
+        elif ext in ['.mp4', '.mov']:
+            method = "sendVideo"
+            file_key = "video"
+        else:
+            method = "sendDocument"
+            file_key = "document"
+
+        endpoint = f"{self.base_url}/{method}"
+        
+        payload = {"chat_id": group_id}
+        if caption:
+            payload["caption"] = caption
+        if topic_id:
+            payload["message_thread_id"] = topic_id
+
+        try:
+            with open(file_path, 'rb') as f:
+                files = {file_key: f}
+                response = requests.post(endpoint, data=payload, files=files, timeout=60)
+                response.raise_for_status()
+                
+            logger.info(f"File '{os.path.basename(file_path)}' sent via {method}")
             return response.json()
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to send Telegram message: {e}")
-            if response is not None:
-                logger.error(f"Response: {response.text}")
+            logger.error(f"Failed to send file: {e}")
             return None
+    
+    def get_updates(self, offset=None, timeout=30):
+        """
+        Polls the Telegram API for new updates (messages, button clicks).
+
+        Args:
+            offset (int, optional): Identifier of the first update to be returned.
+            timeout (int): Timeout in seconds
+        """
+        endpoint = f"{self.base_url}/getUpdates"
+        params = {"timeout": timeout, "offset": offset}
+        try:
+            response = requests.get(endpoint, params=params, timeout=timeout + 5)
+            return response.json().get("result", [])
+        except Exception as e:
+            logger.error(f"Error fetching updates: {e}")
+            return []
+    
+    def answer_callback_query(self, callback_query_id: str, text: str = None, show_alert: bool = False):
+        """
+        Acknowledges a callback query and optionally shows a popup alert.
+
+        Args:
+            callback_query_id (str): The unique identifier for the query to be answered.
+            text (str, optional): Text of the notification. If not specified, nothing will be shown.
+            show_alert (bool, optional): If true, an alert will be shown instead of a notification at the top of the chat screen.
+        """
+        endpoint = f"{self.base_url}/answerCallbackQuery"
+        payload = {"callback_query_id": callback_query_id}
+        
+        if text:
+            payload["text"] = text
+            payload["show_alert"] = show_alert
+
+        try:
+            requests.post(endpoint, data=payload, timeout=10)
+        except Exception as e:  
+            logger.error(f"Error answering callback query: {e}")
+
+    def get_chat_admins(self, group_id: str) -> list:
+        """
+        Fetches the current list of administrator user IDs for a specific chat.
+        Args:
+            group_id (str): The Chat ID of the group or channel.
+        Returns:
+            list: A list of user IDs (integers) who are administrators of the chat.
+        """
+        endpoint = f"{self.base_url}/getChatAdministrators"
+        payload = {"chat_id": group_id}
+        try:
+            response = requests.post(endpoint, data=payload, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("ok"):
+                # Extract and return just the numeric user IDs of the admins
+                admin_ids = [admin["user"]["id"] for admin in data["result"]]
+                return admin_ids
+            else:
+                logger.error(f"Telegram API Error: {data.get('description')}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error fetching admins: {e}")
+            return []

@@ -12,7 +12,6 @@ It is designed to be modular and easily adaptable for various automation tasks i
 - [Usage](#usage)
   - [Using the Modules](#using-the-modules)
 - [Configuration](#configuration)
-- [Contributing](#contributing)
 
 ## Features
 
@@ -94,14 +93,3 @@ The core configuration is typically handled in your main script (e.g., `main.py`
 *   **Credentials**: Path to your Service Account JSON key.
 *   **Filter Rules**: Dictionary controlling how data is processed.
 *   **Execution Order**: Sequence of operations.
-
-## Contributing
-
-To contribute, please follow these steps:
-
-1.  **Fork the repository**.
-2.  **Create a new branch** for your feature or bug fix.
-3.  **Make your changes** and commit them.
-4.  **Push to your fork** and submit a **Pull Request**.
-
-Please ensure your code follows the existing style and includes appropriate documentation.
