@@ -10,22 +10,27 @@ from selenium.webdriver.support.ui import Select
 logger = logging.getLogger(__name__)
 
 class Scraper:
-    def __init__(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
+    def __init__(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
         
         Args:
             headless (bool): If True, runs the browser without a GUI. Defaults to True.
+            allow_media_perms (bool): If True, enables media permissions in the browser for webcam purposes.
+            disable_noti (bool): If True, will disable all notifications.
             window_size (tuple): Takes a tuple of (width, height) to set the browser window size. Defaults to (1920, 1080).
         """
-        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, window_size=window_size)
+        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, disable_noti=disable_noti, window_size=window_size)
 
-    def setup_driver(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
+    def setup_driver(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
         """
         Configures Chrome options for anti-detection and stability.
         
         Args:
             headless (bool): Whether to run in headless mode.
+            disable_noti (bool): Whether to enable notifications. 
+            allow_media_perms (bool): Whether to allow media permissions for the browser.
+            window_size (tuple): Sets window size according to given parameters.
         Returns:
             webdriver.Chrome: The initialized driver instance.
         """
@@ -33,19 +38,16 @@ class Scraper:
         if headless:
             opts.add_argument("--headless=new") 
         
-        opts.add_argument("--disable-infobars")
+        if disable_noti:
+            opts.add_argument("--disable-infobars")
+            opts.add_argument("--disable-notifications")
+            opts.add_argument("--ignore-certificate-errors")
+        
         opts.add_argument("--guest")
-        opts.add_argument("--disable-notifications")
-        opts.add_argument("--ignore-certificate-errors")
         opts.add_argument("--disable-blink-features=AutomationControlled")
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
         
-        opts.add_argument(
-            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        )
         opts.add_argument("--disable-gpu")
         opts.add_argument("--no-sandbox")
         opts.add_argument("--disable-dev-shm-usage")
@@ -281,21 +283,27 @@ class Scraper:
         self.driver.quit()
 
 class SpoofScraper:
-    def __init__(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
+    def __init__(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
         
         Args:
             headless (bool): If True, runs the browser without a GUI. Defaults to True.
+            allow_media_perms (bool): If True, enables media permissions in the browser for webcam purposes.
+            disable_noti (bool): If True, will disable all notifications.
+            window_size (tuple): Takes a tuple of (width, height) to set the browser window size. Defaults to (1920, 1080).
         """
-        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, window_size=window_size)
+        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, disable_noti=disable_noti, window_size=window_size)
 
-    def setup_driver(self, headless=True, allow_media_perms=False, window_size: tuple = (1920, 1080)):
+    def setup_driver(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
         """
         Configures Chrome options for anti-detection and stability.
         
         Args:
             headless (bool): Whether to run in headless mode.
+            disable_noti (bool): Whether to enable notifications. 
+            allow_media_perms (bool): Whether to allow media permissions for the browser.
+            window_size (tuple): Sets window size according to given parameters.
         Returns:
             webdriver.Chrome: The initialized driver instance.
         """
@@ -303,10 +311,12 @@ class SpoofScraper:
         if headless:
             opts.add_argument("--headless=new") 
         
-        opts.add_argument("--disable-infobars")
+        if disable_noti:
+            opts.add_argument("--disable-infobars")
+            opts.add_argument("--disable-notifications")
+            opts.add_argument("--ignore-certificate-errors")
+
         opts.add_argument("--guest")
-        opts.add_argument("--disable-notifications")
-        opts.add_argument("--ignore-certificate-errors")
         opts.add_argument("--disable-blink-features=AutomationControlled")
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
