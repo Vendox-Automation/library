@@ -23,7 +23,7 @@ class TelegramBot:
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
 
     def send_message(self, group_id: str, message: str, topic_id: int = None, 
-                     buttons: list = None, reply_to_message_id: int = None):
+                     buttons: list = None, reply_to_message_id: int = None, disable_web_page_preview: bool = False):
         """
         Sends a text message with optional interactive buttons.
         Args:
@@ -32,13 +32,15 @@ class TelegramBot:
             topic_id (int, optional): The 'message_thread_id' for forum topics.
             buttons (list, optional): A list of lists representing rows of buttons for an inline keyboard.
             reply_to_message_id (int, optional): If set, the message will be a reply to this message ID.
+            disable_web_page_preview (bool, optional): If set to True, it will disable preview links. Defaults to False
         """
         endpoint = f"{self.base_url}/sendMessage"
         
         payload = {
             "chat_id": group_id,
             "text": message,
-            "parse_mode": "HTML"
+            "parse_mode": "HTML",
+            "disable_web_page_preview": disable_web_page_preview
         }
 
         if topic_id:
