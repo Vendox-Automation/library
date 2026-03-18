@@ -7,7 +7,7 @@ from typing import Callable, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-class GeneralListener:
+class GoogleSheetsListener:
     """
     A reusable listener that monitors a Google Sheet for triggers.
     It passes the row data to a callback and lets the user handle feedback.
