@@ -19,6 +19,7 @@ It is designed to be modular and easily adaptable for various automation tasks i
 - **Google Sheets Integration**: Seamlessly uploads processed data to a specified Google Sheet and Worksheet.
 - **Google Drive Management**: Navigate folders, copy files, and read CSVs directly from Google Drive using `DriveManager`.
 - **Data Utilities**: Helper functions for common DataFrame operations (e.g., splitting data) in `data_utils`.
+- **Service Account Failover**: Rotate Google service accounts automatically when quota limits are hit using `ServiceAccountManager`.
 - **Modular Design**: Separate components for filtering (`CSVFilter`), uploading (`GoogleSheetUploader`), and Drive interactions allow for easy reuse.
 - **Execution Control**: Define the exact order of operations for data processing.
 
@@ -51,6 +52,7 @@ Before running the project, ensure you have the following:
 │       ├── csv_filter.py     # Logic for filtering and cleaning CSV data
 │       ├── uploader.py       # Logic for uploading data to Google Sheets
 │       ├── google_drive.py   # Logic for Google Drive interactions
+│       ├── service_account_manager.py # Service-account failover helper
 │       └── data_utils.py     # Helper functions for data manipulation
 ├── documentation/            # Project documentation
 ├── pyproject.toml            # Package configuration
