@@ -6,6 +6,7 @@ from .telegram import TelegramBot
 from .webscraper import Scraper, SpoofScraper
 from .listener import GoogleSheetsListener
 from .database import Database
+from .service_account_manager import ServiceAccountManager
 
 # Adding more classes/functions to the __init__.py for easier imports
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "SpoofScraper",
     "GoogleSheetsListener",
     "Database",
+    "ServiceAccountManager",
 ]
