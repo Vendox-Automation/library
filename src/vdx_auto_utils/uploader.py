@@ -1,293 +1,407 @@
-import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import logging
 import os
-import re 
+import re
 import time
-import socket
 import traceback
-from typing import List, Dict, Any, Union
+import socket
+from typing import Dict, List, Any, Optional, Union
+import gspread
+import pandas as pd
+from oauth2client.service_account import ServiceAccountCredentials
+from .service_account_manager import ServiceAccountManager
 
-# Prevent hanging forever
 socket.setdefaulttimeout(60)
+logger = logging.getLogger(__name__)
 
 class GoogleSheetUploader:
     """
-    A reusable module to upload a Pandas DataFrame's contents to a specified
-    Google Sheet and Worksheet using a Service Account.
+    A reusable module to upload a Pandas DataFrame to a Google Sheet.
+
+    Supports two auth modes:
+      1. ServiceAccountManager (recommended) — automatic quota failover
+         across multiple service accounts.
+      2. Single credentials file (legacy) — original behaviour, no failover.
+
+    Usage (recommended):
+        manager = ServiceAccountManager(["sa1.json", "sa2.json"])
+        uploader = GoogleSheetUploader(service_account_manager=manager)
+
+    Usage (legacy, single account):
+        uploader = GoogleSheetUploader(credentials_file="sa.json")
     """
-    
-    # Define the required scopes for the Service Account
+
     SCOPES = [
-        'https://www.googleapis.com/auth/spreadsheets', # For Sheets API
-        'https://www.googleapis.com/auth/drive'         # For Drive API
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
     ]
 
-    def __init__(self, credentials_file_path: str):
+    def __init__(
+        self,
+        credentials_file: Optional[str] = None,
+        service_account_manager: Optional[ServiceAccountManager] = None,
+    ):
         """
-        Initializes the uploader by authenticating with Google.
-        Args:
-            credentials_file_path: The path to the Service Account JSON key file.
-        """
-        if not os.path.exists(credentials_file_path):
-            raise FileNotFoundError(f"Credentials file not found at: {credentials_file_path}")
-            
-        print(f"Authenticating with Google using {credentials_file_path}...")
-        
-        # Authenticate using the Service Account credentials
-        self.creds = ServiceAccountCredentials.from_json_keyfile_name(
-            credentials_file_path, self.SCOPES
-        )
-        self.client = gspread.authorize(self.creds)
-        print("Authentication successful.")
+        Initialise the uploader.
 
-    # HELPER METHOD
-    def _prepare_data_for_gspread(self, 
-                                    df: pd.DataFrame, 
-                                    include_header: bool = True) -> List[List[Any]]:
-        """
-        Converts a Pandas DataFrame into the list-of-lists format required by gspread.
+        Exactly one of credentials_file or service_account_manager must be
+        provided. Passing both raises ValueError. Passing neither raises
+        ValueError.
+
         Args:
-            df: The Pandas DataFrame to convert.
-            include_header: If True, includes the DataFrame's header row.
-        Returns:
-            A list of lists representing the DataFrame's data.
+            credentials_file: Path to a single service account JSON key file.
+                               Kept for backwards compatibility; prefer
+                               service_account_manager for production use.
+            service_account_manager: A pre-configured ServiceAccountManager
+                                     instance. All gspread calls will go
+                                     through its execute_with_failover() so
+                                     quota errors automatically rotate to the
+                                     next account.
         """
-        
-        df = df.fillna('')
-        data_rows = df.values.tolist()
-        
-        if include_header:
-            # Get the header row and prepend it
-            header = [str(col) for col in df.columns.tolist()]
-            prepared_data = [header] + data_rows
+        if credentials_file and service_account_manager:
+            raise ValueError(
+                "Provide either credentials_file or service_account_manager, not both."
+            )
+        if not credentials_file and not service_account_manager:
+            raise ValueError(
+                "Provide either credentials_file or service_account_manager."
+            )
+
+        self._manager: Optional[ServiceAccountManager] = service_account_manager
+
+        if credentials_file:
+            if not os.path.exists(credentials_file):
+                raise FileNotFoundError(
+                    f"Credentials file not found at: {credentials_file}"
+                )
+            logger.info("Authenticating with single credentials file: %s", credentials_file)
+            creds = ServiceAccountCredentials.from_json_keyfile_name(
+                credentials_file, self.SCOPES
+            )
+            # Wrap in a trivial manager so the rest of the class is uniform.
+            # We build a one-shot manager that always returns this client.
+            self._static_client = gspread.authorize(creds)
+            logger.info("Authentication successful (single account, no failover).")
         else:
-            prepared_data = data_rows
-            
-        print(f"-> Data prepared. Total rows: {len(prepared_data)}")    
-        return prepared_data
+            self._static_client = None
+            logger.info(
+                "Using ServiceAccountManager with %d account(s).",
+                len(service_account_manager.service_account_files),
+            )
 
-    # HELPER: FORMATTING
-    def _format_dataframe_to_gsheet_layout(self, 
-                                            df: pd.DataFrame, 
-                                            layout_map: Dict[str, Union[str, None]]) -> pd.DataFrame:
+    def _run(self, operation, *args, **kwargs):
         """
-        Creates a new DataFrame structure where columns are ordered and spaced
-        according to the layout_map.
-        
+        Execute a gspread operation with quota failover if a manager is
+        present, or directly against the static client otherwise.
+
         Args:
-            df: The cleaned source DataFrame.
-            layout_map: A dict mapping GSheet column letters (A, B, C) to 
-                        DataFrame column names (or None for a gap).
-                        
-        Returns:
-            A new DataFrame with columns named by their GSheet column letters (A, B, C...).
+            operation: Callable(client, *args, **kwargs) -> Any
         """
-        print("-> Formatting DataFrame to Google Sheet Layout...")
-        
+        if self._manager is not None:
+            return self._manager.execute_with_failover(operation, *args, **kwargs)
+        return operation(self._static_client, *args, **kwargs)
+
+    def _prepare_data_for_gspread(
+        self, df: pd.DataFrame, include_header: bool = True
+    ) -> List[List[Any]]:
+        """
+        Convert a DataFrame into the list-of-lists format gspread expects.
+        """
+        df = df.fillna("")
+        data_rows = df.values.tolist()
+
+        if include_header:
+            header = [str(col) for col in df.columns.tolist()]
+            prepared = [header] + data_rows
+        else:
+            prepared = data_rows
+
+        logger.info("Data prepared — total rows (incl. header): %d", len(prepared))
+        return prepared
+
+    def _format_dataframe_to_gsheet_layout(
+        self,
+        df: pd.DataFrame,
+        layout_map: Dict[str, Union[str, None]],
+    ) -> pd.DataFrame:
+        """
+        Reorder and space columns according to a sheet-column-letter map.
+
+        Args:
+            df: Source DataFrame.
+            layout_map: Maps GSheet column letters (A, B, C…) to DataFrame
+                        column names, or None for an intentional blank column.
+        """
+        logger.info("Formatting DataFrame to Google Sheet layout…")
         sorted_layout = sorted(layout_map.items(), key=lambda item: item[0])
         formatted_data = {}
-        
+
         for gsheet_col, df_col_name in sorted_layout:
             if df_col_name is None:
-                formatted_data[gsheet_col] = [''] * len(df)
+                formatted_data[gsheet_col] = [""] * len(df)
             elif df_col_name in df.columns:
-                formatted_data[gsheet_col] = df[df_col_name].tolist() 
+                formatted_data[gsheet_col] = df[df_col_name].tolist()
             else:
-                print(f"-> Warning: DF column '{df_col_name}' not found. Creating empty column for GSheet '{gsheet_col}'.")
-                formatted_data[gsheet_col] = [''] * len(df)
-                
+                logger.warning(
+                    "DataFrame column '%s' not found — creating empty column '%s'.",
+                    df_col_name,
+                    gsheet_col,
+                )
+                formatted_data[gsheet_col] = [""] * len(df)
+
         formatted_df = pd.DataFrame(formatted_data)
-        print(f"-> Layout formatted from {len(df.columns)} columns to {len(formatted_df.columns)} GSheet columns.")
+        logger.info(
+            "Layout formatted: %d source columns → %d sheet columns.",
+            len(df.columns),
+            len(formatted_df.columns),
+        )
         return formatted_df
 
-    # --- PRIMARY UPLOAD METHOD (UPDATED WITH AUTO-RESIZE) ---
-    def upload_dataframe_to_sheet(self, 
-                                  dataframe: pd.DataFrame, 
-                                  spreadsheet_id: str,
-                                  worksheet_name: str = "Sheet1",
-                                  clear_before_upload: bool = True,
-                                  upload_start_cell: str = "A1", 
-                                  include_header: bool = True,
-                                  gsheet_layout_map: Dict[str, Union[str, None]] = None):
+    def upload_dataframe_to_sheet(
+        self,
+        dataframe: pd.DataFrame,
+        spreadsheet_id: str,
+        worksheet_name: str = "Sheet1",
+        clear_before_upload: bool = True,
+        upload_start_cell: str = "A1",
+        include_header: bool = True,
+        gsheet_layout_map: Optional[Dict[str, Union[str, None]]] = None,
+    ):
         """
-        The main method to upload a cleaned Pandas DataFrame.
-        Includes automatic resizing of the sheet if data exceeds current grid limits.
+        Upload a DataFrame to a Google Sheet worksheet.
+
+        Includes automatic grid resizing, chunked upload for large files,
+        and quota failover when a ServiceAccountManager is provided.
 
         Args:
-            dataframe: The Pandas DataFrame containing the data to upload.
-            spreadsheet_name: The name of the Google Sheet.
-            worksheet_name: The specific tab name. Defaults to 'Sheet1'.
-            clear_before_upload: If True, clears the sheet contents before uploading.
-            upload_start_cell: The starting cell (e.g., "A1") or "APPEND" to add after existing data.
-            include_header: If True, includes the DataFrame's header row in the upload.
-            gsheet_layout_map: If there is a specific layout mapping for GSheet columns then follow it, else upload as-is.
-        Returns:
-            None
+            dataframe: DataFrame to upload.
+            spreadsheet_id: Google Sheet ID (from the URL).
+            worksheet_name: Tab name. Defaults to 'Sheet1'.
+            clear_before_upload: Clear sheet contents before uploading.
+                                 Ignored in APPEND mode.
+            upload_start_cell: Starting cell (e.g. 'A1'), or 'APPEND' to
+                               write after the last occupied row.
+            include_header: Include the DataFrame column headers as the
+                            first row. Auto-disabled in APPEND mode when
+                            data already exists.
+            gsheet_layout_map: Optional column-letter → DataFrame-column
+                               mapping to reorder/space columns before upload.
         """
-
-        # 0. Check if a layout map was provided and apply it
         if gsheet_layout_map:
             dataframe = self._format_dataframe_to_gsheet_layout(dataframe, gsheet_layout_map)
-        
-        try:
-            # 1. Connect to Spreadsheet
-            spreadsheet = self.client.open_by_key(spreadsheet_id)
-            worksheet = spreadsheet.worksheet(worksheet_name)
 
-            # 2. DYNAMIC LOGIC: Determine Start Cell and Row Index
-            start_cell = upload_start_cell 
-            start_row_int = 1 
-            
+        try:
+            # 1. Open spreadsheet and worksheet
+            def _open_worksheet(client):
+                return client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+
+            worksheet = self._run(_open_worksheet)
+
+            # 2. Resolve start cell and row index
+            start_cell = upload_start_cell
+            start_row_int = 1
+
             if upload_start_cell.upper() == "APPEND":
-                # Get all existing values to find the end of the data
-                existing_data = worksheet.get_all_values()
+                def _get_all(client):
+                    ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                    return ws.get_all_values()
+
+                existing_data = self._run(_get_all)
                 next_row = len(existing_data) + 1
                 start_cell = f"A{next_row}"
-                start_row_int = next_row # Capture this for the math below
-                print(f"-> Append mode active. Target cell: {start_cell}")
-                
-                # Force include_header to False if we are appending to existing data
+                start_row_int = next_row
+                logger.info("Append mode — target cell: %s", start_cell)
+
                 if next_row > 1:
                     include_header = False
-                    print("-> Data already exists. Skipping header for append.")
+                    logger.info("Existing data found — skipping header for append.")
             else:
-                # Parse the row number from standard cell strings like "A1", "C50"
                 match = re.search(r"(\d+)", start_cell)
                 if match:
                     start_row_int = int(match.group(1))
 
-            # 3. Prepare Data
+            # 3. Prepare data
             data_to_upload = self._prepare_data_for_gspread(
-                dataframe, 
-                include_header=include_header 
+                dataframe, include_header=include_header
             )
 
-            # If we are adding 100k rows, we MUST shrink columns first to avoid hitting the 10M cell limit.
+            # 4. Resize columns if needed
             required_cols = len(dataframe.columns)
-            current_sheet_cols = worksheet.col_count
-            
-            # If it's too narrow, expand it NOW so the data fits.
-            if required_cols > current_sheet_cols:
-                 print(f"↔️ Optimizing columns: {current_sheet_cols} -> {required_cols}")
-                 worksheet.resize(cols=required_cols)
-                 time.sleep(2) # Short pause for API stability
+            current_cols = worksheet.col_count
 
-            # Resizing rows
+            if required_cols > current_cols:
+                logger.info(
+                    "Expanding columns: %d → %d", current_cols, required_cols
+                )
+
+                def _resize_cols(client):
+                    ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                    ws.resize(cols=required_cols)
+
+                self._run(_resize_cols)
+                time.sleep(2)
+
+            # 5. Resize rows if needed
             num_rows_to_upload = len(data_to_upload)
             required_total_rows = start_row_int + num_rows_to_upload
-            current_sheet_rows = worksheet.row_count
-            
-            if required_total_rows > current_sheet_rows:
-                rows_to_add = required_total_rows - current_sheet_rows + 500 # Buffer
-                
-                # Check Limit Prediction
-                predicted_cells = (current_sheet_rows + rows_to_add) * required_cols
-                if predicted_cells > 9500000:
-                    print(f"⚠️ WARNING: This upload will push the sheet to {predicted_cells} cells (Limit: 10M).")
-                
-                print(f"📉 Resizing sheet: Adding {rows_to_add} rows...")
+            current_rows = worksheet.row_count
+
+            if required_total_rows > current_rows:
+                rows_to_add = required_total_rows - current_rows + 500  # buffer
+
+                predicted_cells = (current_rows + rows_to_add) * required_cols
+                if predicted_cells > 9_500_000:
+                    logger.warning(
+                        "Upload will push sheet to ~%d cells (limit: 10M).",
+                        predicted_cells,
+                    )
+
+                logger.info("Adding %d rows to sheet…", rows_to_add)
+
+                def _add_rows(client):
+                    ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                    ws.add_rows(rows_to_add)
+
                 try:
-                    worksheet.add_rows(rows_to_add)
+                    self._run(_add_rows)
                 except Exception as resize_err:
                     if "10000000 cells" in str(resize_err):
-                        raise Exception("❌ SHEET FULL: Cannot add rows. The Google Sheet has hit the 10 Million cell limit. Please archive old data or use a new sheet.")
-                    raise resize_err
+                        raise Exception(
+                            "Sheet full — the Google Sheet has hit the 10M cell limit. "
+                            "Archive old data or use a new sheet."
+                        ) from resize_err
+                    raise
 
-            # 4. Clear (only if NOT appending and requested)
+            # 6. Clear (only when not appending)
             if clear_before_upload and upload_start_cell.upper() != "APPEND":
-                print(f"Clearing worksheet: '{worksheet_name}'...")
-                worksheet.clear()
+                logger.info("Clearing worksheet: '%s'…", worksheet_name)
 
-            # 5. Upload
-            print(f"Uploading {len(data_to_upload)} rows to {worksheet_name} at {start_cell}...")
-            
-            # Chunked upload for massive files (prevents timeout)
+                def _clear(client):
+                    client.open_by_key(spreadsheet_id).worksheet(worksheet_name).clear()
+
+                self._run(_clear)
+
+            # 7. Upload (chunked for large files)
+            logger.info(
+                "Uploading %d rows to '%s' at %s…",
+                len(data_to_upload),
+                worksheet_name,
+                start_cell,
+            )
+
             chunk_size = 5000
             if len(data_to_upload) > chunk_size:
-                print(f"   ℹ️ Large file detected. Uploading in chunks of {chunk_size}...")
+                logger.info("Large file — uploading in chunks of %d…", chunk_size)
                 for i in range(0, len(data_to_upload), chunk_size):
-                    chunk = data_to_upload[i : i + chunk_size]
-                    # Calculate chunk start row
+                    chunk = data_to_upload[i: i + chunk_size]
                     chunk_start_row = start_row_int + i
                     chunk_range = f"A{chunk_start_row}"
-                    worksheet.update(chunk_range, chunk, value_input_option='USER_ENTERED')
-                    print(f"      ✅ Uploaded rows {i} to {i+len(chunk)}")
+
+                    def _upload_chunk(client, _range=chunk_range, _chunk=chunk):
+                        ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                        ws.update(_range, _chunk, value_input_option="USER_ENTERED")
+
+                    self._run(_upload_chunk)
+                    logger.info("Uploaded rows %d – %d.", i, i + len(chunk))
                     time.sleep(1)
             else:
-                worksheet.update(start_cell, data_to_upload, value_input_option='USER_ENTERED')
-            
-            print("✨ Upload complete!")
+                def _upload(client):
+                    ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                    ws.update(start_cell, data_to_upload, value_input_option="USER_ENTERED")
 
-        except Exception as e:
-            print(f"An unexpected error occurred during the upload process: {e}")
+                self._run(_upload)
+
+            logger.info("Upload complete.")
+
+        except Exception:
+            logger.error("Upload failed.", exc_info=True)
             traceback.print_exc()
+            raise
 
-    def update_selective_columns(self, dataframe, spreadsheet_id, worksheet_name, 
-                                 gsheet_layout_map, start_row=3, append=False):
+    def update_selective_columns(
+        self,
+        dataframe: pd.DataFrame,
+        spreadsheet_id: str,
+        worksheet_name: str,
+        gsheet_layout_map: Dict[str, str],
+        start_row: int = 3,
+        append: bool = False,
+    ):
         """
-        Overridden method: Uses batch_update and no internal try/catch
-        so errors properly trigger the main retry loop.
+        Batch-update specific columns without touching the rest of the sheet.
+
         Args:
-            dataframe: The Pandas DataFrame containing the data to upload.
-            spreadsheet_id: The ID of the Google Sheet.
-            worksheet_name: The specific tab name.
-            gsheet_layout_map: A dict mapping GSheet column letters (A, B, C) to 
-                               DataFrame column names.
-            start_row: The starting row index (1-based).
-            append: If True, appends data after existing content.
-        Returns:
-            None
+            dataframe: Source DataFrame.
+            spreadsheet_id: Google Sheet ID.
+            worksheet_name: Tab name.
+            gsheet_layout_map: Maps GSheet column letters to DataFrame columns.
+            start_row: First row to write to (1-based). Defaults to 3.
+            append: If True, writes after the last occupied row in the anchor
+                    column instead of at start_row.
         """
         if not gsheet_layout_map:
-            print("⚠️ No layout map provided. Skipping.")
+            logger.warning("No layout map provided — skipping update.")
             return
 
-        spreadsheet = self.client.open_by_key(spreadsheet_id)
-        worksheet = spreadsheet.worksheet(worksheet_name)
-        
-        # DETERMINE START ROW ---
+        # Determine the actual start row
         final_start_row = start_row
         if append:
             anchor_col = list(gsheet_layout_map.keys())[0]
-            col_values = worksheet.col_values(self._col_letter_to_index(anchor_col))
-            final_start_row = max(len(col_values) + 1, start_row)
-        
-        # --- 2. GRID LIMIT SAFETY ---
-        needed_rows = final_start_row + len(dataframe) - 1
-        if needed_rows > worksheet.row_count:
-            rows_to_add = needed_rows - worksheet.row_count + 10
-            print(f"📏 Expanding sheet: Adding {rows_to_add} rows...")
-            worksheet.add_rows(rows_to_add)
+            anchor_idx = self._col_letter_to_index(anchor_col)
 
-        # --- 3. COMPILE BATCH DATA ---
-        batch_data = []
+            def _get_col(client):
+                ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                return ws.col_values(anchor_idx)
+
+            col_values = self._run(_get_col)
+            final_start_row = max(len(col_values) + 1, start_row)
+
+        # Expand grid if needed
+        needed_rows = final_start_row + len(dataframe) - 1
+
+        def _get_row_count(client):
+            ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+            return ws.row_count
+
+        current_rows = self._run(_get_row_count)
+
+        if needed_rows > current_rows:
+            rows_to_add = needed_rows - current_rows + 10
+            logger.info("Expanding sheet by %d rows…", rows_to_add)
+
+            def _add_rows(client):
+                ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                ws.add_rows(rows_to_add)
+
+            self._run(_add_rows)
+
+        # Build batch payload
         end_row = final_start_row + len(dataframe) - 1
+        batch_data = []
 
         for sheet_col, df_col in gsheet_layout_map.items():
             if df_col not in dataframe.columns:
                 continue
-            
-            # Convert to list of lists, replace NaNs
-            values = dataframe[[df_col]].fillna('').astype(str).values.tolist()
-            
-            # Construct Range
+            values = dataframe[[df_col]].fillna("").astype(str).values.tolist()
             target_range = f"{sheet_col}{final_start_row}:{sheet_col}{end_row}"
-            
-            batch_data.append({
-                'range': target_range,
-                'values': values
-            })
+            batch_data.append({"range": target_range, "values": values})
 
-        # EXECUTE SINGLE BATCH CALL
-        if batch_data:
-            worksheet.batch_update(batch_data, value_input_option='USER_ENTERED')
-            print(f"✅ Batch updated {len(dataframe)} rows in '{worksheet_name}'")
-        else:
-            print("ℹ️ No valid columns found to update.")
+        if not batch_data:
+            logger.info("No valid columns found to update.")
+            return
 
-    def _col_letter_to_index(self, letter):
+        def _batch_update(client):
+            ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+            ws.batch_update(batch_data, value_input_option="USER_ENTERED")
+
+        self._run(_batch_update)
+        logger.info(
+            "Batch updated %d rows in '%s'.", len(dataframe), worksheet_name
+        )
+
+    @staticmethod
+    def _col_letter_to_index(letter: str) -> int:
+        """Convert a column letter (A, B, AA…) to a 1-based column index."""
         index = 0
         for char in letter:
-            index = index * 26 + (ord(char.upper()) - ord('A') + 1)
+            index = index * 26 + (ord(char.upper()) - ord("A") + 1)
         return index

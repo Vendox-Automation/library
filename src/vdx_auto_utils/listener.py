@@ -2,7 +2,7 @@ import time
 import socket
 import logging
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from typing import Callable, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class GoogleSheetsListener:
         self._is_listening = False
         
         # Internal Authentication
-        self.creds = ServiceAccountCredentials.from_json_keyfile_name(credentials_file, self.SCOPES)
+        self.creds = Credentials.from_service_account_file(credentials_file, self.SCOPES)
         self.client = gspread.authorize(self.creds)
         
         socket.setdefaulttimeout(120)
