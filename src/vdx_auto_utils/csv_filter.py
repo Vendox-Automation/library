@@ -22,10 +22,10 @@ class CSVFilter:
             print(f"📂 Loading data from path: {input_source}")
             excel_extensions = ('.xlsx', '.xls', '.xlt', '.xltx', '.xlsm')
             try:
-                if input_source.lower.endswith(excel_extensions):
+                if input_source.lower().endswith(excel_extensions):
                     self.df = pd.read_excel(input_source)
-                elif input_source.lower.endswith(('.csv')):
-                    self.read_csv(input_source, low_memory=False)
+                elif input_source.lower().endswith(('.csv')):
+                    self.df = pd.read_csv(input_source, low_memory=False)
             except FileNotFoundError:
                 traceback.print_exc()
                 raise FileNotFoundError(f"Input CSV file not found at: {input_source}")
