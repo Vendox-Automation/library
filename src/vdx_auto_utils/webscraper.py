@@ -83,7 +83,7 @@ class Scraper:
         from selenium.webdriver.common.action_chains import ActionChains
         ActionChains(self.driver).move_to_element(element).click().perform()
 
-    def find_input(self, xpath, timeout=10):
+    def find_input(self, xpath: str, timeout=10):
         """
         Waits for an input field to appear and returns it.
         
@@ -124,7 +124,7 @@ class Scraper:
                 logger.warning(f"Standard fill failed, falling back to JS: {e}")
                 self._fill_js(element, value)
 
-    def get_text(self, xpath, timeout=10):
+    def get_text(self, xpath: str, timeout=10):
         """
         Waits for an element and returns its text.
         
@@ -143,7 +143,7 @@ class Scraper:
             logger.error(f"Could not get text from {xpath}: {e}")
             return None
 
-    def select_option(self, xpath, option_text):
+    def select_option(self, xpath: str, option_text):
         """
         Selects an option from a dropdown by visible text.
         
@@ -161,7 +161,7 @@ class Scraper:
         except Exception as e:
             logger.error(f"Failed to select option '{option_text}': {e}")
 
-    def find_btn(self, xpath, timeout=10):
+    def find_btn(self, xpath: str, timeout=10):
         """
         Waits for a button to be clickable and returns it.
         
@@ -211,7 +211,7 @@ class Scraper:
 
         self._click_js(element)
 
-    def find_and_click_btn(self, xpath, timeout=10, use_js=False):
+    def find_and_click_btn(self, xpath: str, timeout=10, use_js=False):
         """
         Helper to find and click in one step.
         
@@ -277,69 +277,69 @@ class Scraper:
         except Exception as e:
             logger.error(f"scan_and_close_popups JS execution failed: {e}")
             return 0
+    
+    def wait_for_url(self, url_fragment: str, timeout: int = 10) -> bool:
+        """
+        Waits for the URL to change to one containing the given fragment.
+        If no fragment is provided, waits for the URL to change to any other URL.
+        
+        Args:
+            url_fragment (str) optional: The URL fragment to wait for.
+            timeout (int): Seconds to wait. Defaults to 10.
+        Returns:
+            bool: True if the URL changed, False otherwise.
+        """
+        try:
+            if not url_fragment:
+                WebDriverWait(self.driver, timeout).until(EC.url_changes(self.driver.current_url))
+                return True
+            WebDriverWait(self.driver, timeout).until(EC.url_contains(url_fragment))
+            return True
+        except Exception:
+            if url_fragment:
+                logger.error(f"URL did not contain '{url_fragment}' within {timeout}s")
+            else:
+                logger.error(f"URL did not change within {timeout}s")
+            return False
+
+    def wait_for_element(self, xpath: str, timeout: int = 10):
+        """
+        Waits for an element to be present in the DOM.
+        
+        Args:
+            xpath (str): The XPath of the element to wait for.
+            timeout (int): Seconds to wait. Defaults to 10.
+        Returns:
+            bool: True if the element is present, False otherwise.
+        """
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_element_located((By.XPATH, xpath))
+            )
+            return True
+        except Exception:
+            logger.error(f"Element not found: {xpath} within {timeout}s")
+            return None
+
+    def wait_for_element_hidden(self, xpath: str, timeout: int = 10) -> bool:
+        """
+        Waits for an element to be hidden from the DOM.
+        
+        Args:
+            xpath (str): The XPath of the element to wait for.
+            timeout (int): Seconds to wait. Defaults to 10.
+        Returns:
+            bool: True if the element is hidden, False otherwise.
+        """
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.invisibility_of_element_located((By.XPATH, xpath))
+            )
+            return True
+        except Exception:
+            logger.error(f"Element did not hide: {xpath} within {timeout}s")
+            return False
 
     def quit(self):
         """Closes the driver session."""
         self.driver.quit()
-
-class SpoofScraper:
-    def __init__(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
-        """
-        Initializes the Scraper with a pre-configured Chrome driver.
-        
-        Args:
-            headless (bool): If True, runs the browser without a GUI. Defaults to True.
-            allow_media_perms (bool): If True, enables media permissions in the browser for webcam purposes.
-            disable_noti (bool): If True, will disable all notifications.
-            window_size (tuple): Takes a tuple of (width, height) to set the browser window size. Defaults to (1920, 1080).
-        """
-        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, disable_noti=disable_noti, window_size=window_size)
-
-    def setup_driver(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
-        """
-        Configures Chrome options for anti-detection and stability.
-        
-        Args:
-            headless (bool): Whether to run in headless mode.
-            disable_noti (bool): Whether to enable notifications. 
-            allow_media_perms (bool): Whether to allow media permissions for the browser.
-            window_size (tuple): Sets window size according to given parameters.
-        Returns:
-            webdriver.Chrome: The initialized driver instance.
-        """
-        opts = Options()
-        if headless:
-            opts.add_argument("--headless=new") 
-        
-        if disable_noti:
-            opts.add_argument("--disable-infobars")
-            opts.add_argument("--disable-notifications")
-            opts.add_argument("--ignore-certificate-errors")
-
-        opts.add_argument("--guest")
-        opts.add_argument("--disable-blink-features=AutomationControlled")
-        opts.add_experimental_option("excludeSwitches", ["enable-automation"])
-        opts.add_experimental_option("useAutomationExtension", False)
-        
-        opts.add_argument(
-            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        )
-        opts.add_argument("--disable-gpu")
-        opts.add_argument("--no-sandbox")
-        opts.add_argument("--disable-dev-shm-usage")
-
-        if allow_media_perms:
-            prefs = {
-                "profile.default_content_setting_values.media_stream_camera": 1,
-                "profile.default_content_setting_values.media_stream_mic": 1,
-            }
-            opts.add_experimental_option("prefs", prefs)
-            opts.add_argument("--use-fake-device-for-media-stream")            
-            opts.add_argument("--use-fake-ui-for-media-stream")
-
-        driver = webdriver.Chrome(options=opts)
-        driver.set_window_size(*window_size)
-        driver.implicitly_wait(2)
-        return driver
