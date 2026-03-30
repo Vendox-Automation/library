@@ -28,25 +28,31 @@ jobs:
         id: bump
         run: |
           # Grab the commit message from the push
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          # (Using a safe way to handle multiline commit messages!)
+          COMMIT_MSG=$(cat << 'EOF'
+          ${{ github.event.head_commit.message }}
+          EOF
+          )
           echo "Commit message: $COMMIT_MSG"
           
-          # Regex to extract standard commits: type(scope): message
-          if [[ "$COMMIT_MSG" =~ ^([a-zA-Z]+)\(([^)]+)\): ]]; then
+          # 1. Store the regex safely in a variable first!
+          PATTERN="^([a-zA-Z]+)\(([^)]+)\):"
+          
+          # 2. Use the variable in the if statement
+          if [[ "$COMMIT_MSG" =~ $PATTERN ]]; then
             TYPE="${BASH_REMATCH[1]}"
             SCOPE="${BASH_REMATCH[2]}"
             
-            # Minor bump ONLY for feat(new-module): 
+            # Minor bump ONLY for feat(new-module) 
             if [[ "$TYPE" == "feat" && "$SCOPE" == "new-module" ]]; then
               echo "type=minor" >> $GITHUB_OUTPUT
               echo "Detected new module feature. Bumping MINOR."
             else
-              # Patch bump for everything else (fix, chore, feat(api), etc.)
+              # Patch bump for everything else
               echo "type=patch" >> $GITHUB_OUTPUT
               echo "Detected standard update. Bumping PATCH."
             fi
           else
-            # Fallback if the commit message isn't formatted conventionally
             echo "type=patch" >> $GITHUB_OUTPUT
             echo "Unrecognized format. Defaulting to PATCH."
           fi
