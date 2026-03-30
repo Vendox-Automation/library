@@ -1,0 +1,161 @@
+name: Log Commits to Notion & Jira
+
+on:
+  push:
+    branches: ["**"] # Triggers on any branch
+
+jobs:
+  log-to-notion-and-jira:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch full history so we can read commit messages
+
+      - name: Parse and send commits to Notion & Jira
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: "cbb938a2d1fc4918acfba22b8504c78c"
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY: "TES"
+          REPO_NAME: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          # Map commit type to Jira issue type
+          get_jira_issue_type() {
+            case "$1" in
+              fix)       echo "Task" ;;
+              feat)      echo "Task" ;;
+              refactor)  echo "Task" ;;
+              chore)     echo "Task" ;;
+              docs)      echo "Task" ;;
+              test)      echo "Task" ;;
+              *)         echo "Task" ;;
+            esac
+          }
+
+          # Map commit type to Jira priority
+          get_jira_priority() {
+            case "$1" in
+              fix)  echo "High" ;;
+              feat) echo "Medium" ;;
+              *)    echo "Low" ;;
+            esac
+          }
+
+          # Get commits introduced by this push
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            COMMITS=$(git log -1 --format="%H%x1F%s%x1F%an%x1F%aI")
+          else
+            COMMITS=$(git log ${{ github.event.before }}..${{ github.sha }} --format="%H%x1F%s%x1F%an%x1F%aI")
+          fi
+
+          # Regex pattern: type(module): description
+          PATTERN="^([a-z]+)\(([^)]+)\): (.+)$"
+
+          echo "$COMMITS" | while IFS=$'\x1F' read -r COMMIT_HASH COMMIT_MSG AUTHOR DATE; do
+            [ -z "$COMMIT_HASH" ] && continue
+
+            echo "---"
+            echo "Commit: $COMMIT_HASH"
+            echo "Message: $COMMIT_MSG"
+
+            if [[ "$COMMIT_MSG" =~ $PATTERN ]]; then
+              TYPE="${BASH_REMATCH[1]}"
+              MODULE="${BASH_REMATCH[2]}"
+              DESCRIPTION="${BASH_REMATCH[3]}"
+              COMMIT_URL="https://github.com/${REPO_NAME}/commit/${COMMIT_HASH}"
+
+              case "$TYPE" in
+                fix|feat|refactor|chore|docs|test)
+                  echo "✅ Matched: [$TYPE] ($MODULE) $DESCRIPTION by $AUTHOR"
+
+                  # Escape fields for JSON safety
+                  DESCRIPTION_ESC=$(echo "$DESCRIPTION" | sed 's/"/\\"/g')
+                  AUTHOR_ESC=$(echo "$AUTHOR" | sed 's/"/\\"/g')
+                  MODULE_ESC=$(echo "$MODULE" | sed 's/"/\\"/g')
+                  REPO_ESC=$(echo "$REPO_NAME" | sed 's/"/\\"/g')
+                  BRANCH_ESC=$(echo "$BRANCH" | sed 's/"/\\"/g')
+
+                  # ─────────────────────────────────────────
+                  # 1. POST TO NOTION
+                  # ─────────────────────────────────────────
+                  echo "📤 Sending to Notion..."
+                  NOTION_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST https://api.notion.com/v1/pages \
+                    -H "Authorization: Bearer $NOTION_API_KEY" \
+                    -H "Content-Type: application/json" \
+                    -H "Notion-Version: 2022-06-28" \
+                    -d "{
+                      \"parent\": { \"database_id\": \"$NOTION_DATABASE_ID\" },
+                      \"properties\": {
+                        \"Commit Message\": {
+                          \"title\": [{ \"text\": { \"content\": \"$DESCRIPTION_ESC\" } }]
+                        },
+                        \"Type\": { \"select\": { \"name\": \"$TYPE\" } },
+                        \"Module\": { \"rich_text\": [{ \"text\": { \"content\": \"$MODULE_ESC\" } }] },
+                        \"Author\": { \"rich_text\": [{ \"text\": { \"content\": \"$AUTHOR_ESC\" } }] },
+                        \"Repo\": { \"rich_text\": [{ \"text\": { \"content\": \"$REPO_ESC\" } }] },
+                        \"Branch\": { \"rich_text\": [{ \"text\": { \"content\": \"$BRANCH_ESC\" } }] },
+                        \"Date\": { \"date\": { \"start\": \"$DATE\" } },
+                        \"Commit URL\": { \"url\": \"$COMMIT_URL\" }
+                      }
+                    }")
+
+                  NOTION_STATUS=$(echo "$NOTION_RESPONSE" | tail -n1)
+                  NOTION_BODY=$(echo "$NOTION_RESPONSE" | head -n-1)
+
+                  if [ "$NOTION_STATUS" = "200" ]; then
+                    echo "✅ Notion: logged successfully (HTTP $NOTION_STATUS)"
+                  else
+                    echo "❌ Notion: failed (HTTP $NOTION_STATUS)"
+                    echo "Response: $NOTION_BODY"
+                    exit 1
+                  fi
+
+                  # ─────────────────────────────────────────
+                  # 2. POST TO JIRA
+                  # ─────────────────────────────────────────
+                  JIRA_ISSUE_TYPE=$(get_jira_issue_type "$TYPE")
+                  JIRA_PRIORITY=$(get_jira_priority "$TYPE")
+                  JIRA_SUMMARY="[$TYPE][$MODULE] $DESCRIPTION_ESC"
+                  JIRA_DESCRIPTION="*Repo:* $REPO_ESC\\n*Branch:* $BRANCH_ESC\\n*Author:* $AUTHOR_ESC\\n*Commit:* [$COMMIT_HASH|$COMMIT_URL]"
+
+                  echo "📤 Sending to Jira..."
+                  JIRA_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$JIRA_BASE_URL/rest/api/2/issue" \
+                    -u "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                      \"fields\": {
+                        \"project\": { \"key\": \"$JIRA_PROJECT_KEY\" },
+                        \"summary\": \"$JIRA_SUMMARY\",
+                        \"description\": \"$JIRA_DESCRIPTION\",
+                        \"issuetype\": { \"name\": \"$JIRA_ISSUE_TYPE\" },
+                        \"priority\": { \"name\": \"$JIRA_PRIORITY\" },
+                        \"labels\": [\"$TYPE\", \"$MODULE\", \"github-action\"]
+                      }
+                    }")
+
+                  JIRA_STATUS=$(echo "$JIRA_RESPONSE" | tail -n1)
+                  JIRA_BODY=$(echo "$JIRA_RESPONSE" | head -n-1)
+
+                  if [ "$JIRA_STATUS" = "201" ]; then
+                    JIRA_KEY=$(echo "$JIRA_BODY" | grep -o '"key":"[^"]*"' | head -1 | cut -d'"' -f4)
+                    echo "✅ Jira: created issue $JIRA_KEY (HTTP $JIRA_STATUS)"
+                  else
+                    echo "❌ Jira: failed (HTTP $JIRA_STATUS)"
+                    echo "Response: $JIRA_BODY"
+                    exit 1
+                  fi
+                  ;;
+                *)
+                  echo "⏭️ Skipping unknown type: $TYPE"
+                  ;;
+              esac
+            else
+              echo "⏭️ Skipping (no match): $COMMIT_MSG"
+            fi
+          done
