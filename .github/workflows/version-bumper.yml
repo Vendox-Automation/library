@@ -1,0 +1,109 @@
+name: Auto Bump Version
+
+on:
+  push:
+    branches: ["main"]
+
+# CRITICAL: This permission is required for the bot to push the updated pyproject.toml back to the repo
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    env:
+      NEW_VERSION: ""
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Determine Bump Type
+        id: bump
+        run: |
+          # Grab the commit message from the push
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          echo "Commit message: $COMMIT_MSG"
+          
+          # Regex to extract standard commits: type(scope): message
+          if [[ "$COMMIT_MSG" =~ ^([a-zA-Z]+)\(([^)]+)\): ]]; then
+            TYPE="${BASH_REMATCH[1]}"
+            SCOPE="${BASH_REMATCH[2]}"
+            
+            # Minor bump ONLY for feat(new-module): 
+            if [[ "$TYPE" == "feat" && "$SCOPE" == "new-module" ]]; then
+              echo "type=minor" >> $GITHUB_OUTPUT
+              echo "Detected new module feature. Bumping MINOR."
+            else
+              # Patch bump for everything else (fix, chore, feat(api), etc.)
+              echo "type=patch" >> $GITHUB_OUTPUT
+              echo "Detected standard update. Bumping PATCH."
+            fi
+          else
+            # Fallback if the commit message isn't formatted conventionally
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "Unrecognized format. Defaulting to PATCH."
+          fi
+
+      - name: Update pyproject.toml (Inline Python Script)
+        env:
+          BUMP_TYPE: ${{ steps.bump.outputs.type }}
+        run: |
+          python -c "
+          import re, sys, os
+          bump_type = os.environ['BUMP_TYPE']
+          
+          try:
+              with open('pyproject.toml', 'r') as f:
+                  content = f.read()
+          except FileNotFoundError:
+              print('❌ pyproject.toml not found! Are you in the right repo?')
+              sys.exit(1)
+              
+          match = re.search(r'version\s*=\s*\"(\d+)\.(\d+)\.(\d+)\"', content)
+          if not match:
+              print('❌ Version string not found in pyproject.toml')
+              sys.exit(1)
+              
+          major, minor, patch = map(int, match.groups())
+          
+          if bump_type == 'minor':
+              minor += 1
+              patch = 0
+          else:
+              patch += 1
+              
+          new_version = f'{major}.{minor}.{patch}'
+          new_content = re.sub(r'version\s*=\s*\"\d+\.\d+\.\d+\"', f'version = \"{new_version}\"', content)
+          
+          with open('pyproject.toml', 'w') as f:
+              f.write(new_content)
+              
+          print(f'✅ Successfully bumped version to {new_version}')
+          
+          # Save the new version to GitHub Env vars so the next step can use it in the commit message
+          with open(os.environ['GITHUB_ENV'], 'a') as env_file:
+              env_file.write(f'NEW_VERSION={new_version}\n')
+          "
+
+      - name: Commit and Push changes
+        run: |
+          # Set up the GitHub Actions bot user
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          
+          # Check if the file was actually changed
+          if git diff --staged --quiet; then
+            echo "No version changes to commit."SN
+          else
+            # The [skip ci] tag prevents this commit from triggering another GitHub Action loop!
+            git commit -m "chore(version): bump version to ${{ env.NEW_VERSION }} [skip ci]"
+            git push
+          fi
