@@ -119,3 +119,28 @@ class DriveManager:
         if not file_id: return None
         request = self.service.files().get_media(fileId=file_id)
         return pd.read_csv(io.BytesIO(request.execute()), low_memory=False)
+
+    def read_sheet_from_drive(self, file_id: str) -> Optional[pd.DataFrame]:
+        """
+        Exports a native Google Sheet to a CSV format and reads it into a Pandas DataFrame.
+
+        Args:
+            file_id: The file ID of the Google Sheet.
+        
+        Returns:
+            A Pandas DataFrame containing the Sheet data, or None if file_id is invalid.
+        """
+        if not file_id: return None
+        try:
+            # Use export_media instead of get_media for native Google Sheets
+            request = self.service.files().export_media(
+                fileId=file_id, 
+                mimeType='text/csv'
+            )
+            csv_data = request.execute()
+            
+            return pd.read_csv(io.BytesIO(csv_data), low_memory=False)
+            
+        except Exception as e:
+            print(f"❌ Failed to export Google Sheet: {e}")
+            return None
