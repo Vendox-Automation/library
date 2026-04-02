@@ -120,7 +120,7 @@ class DriveManager:
         request = self.service.files().get_media(fileId=file_id)
         return pd.read_csv(io.BytesIO(request.execute()), low_memory=False)
 
-    def read_sheet_from_drive(self, file_id: str) -> Optional[pd.DataFrame]:
+    def read_sheet_from_drive(self, file_id: str, sheet_name: str = None) -> Optional[pd.DataFrame]:
         """
         Exports a native Google Sheet to a CSV format and reads it into a Pandas DataFrame.
 
@@ -132,14 +132,16 @@ class DriveManager:
         """
         if not file_id: return None
         try:
-            # Use export_media instead of get_media for native Google Sheets
+            # Export as an Excel file to preserve all sheets/tabs
             request = self.service.files().export_media(
                 fileId=file_id, 
-                mimeType='text/csv'
+                mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            csv_data = request.execute()
+            excel_data = request.execute()
             
-            return pd.read_csv(io.BytesIO(csv_data), low_memory=False)
+            # Read into pandas using read_excel. 
+            # If sheet_name is None, it defaults to the first sheet automatically.
+            return pd.read_excel(io.BytesIO(excel_data), sheet_name=sheet_name)
             
         except Exception as e:
             print(f"❌ Failed to export Google Sheet: {e}")
