@@ -137,17 +137,34 @@ class DriveManager:
         """
         if not file_id: return None
         try:
-            # Export as an Excel file to preserve all sheets/tabs
-            request = self.service.files().export_media(
-                fileId=file_id, 
-                mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-            excel_data = request.execute()
+            # 1. If no sheet_name is provided, grab the metadata to find the first tab's name
+            if not sheet_name:
+                sheet_metadata = self.sheets_service.spreadsheets().get(spreadsheetId=file_id).execute()
+                sheets = sheet_metadata.get('sheets', [])
+                if not sheets:
+                    return None
+                sheet_name = sheets[0].get("properties", {}).get("title", "Sheet1")
+
+            # 2. Fetch the raw values for the target sheet
+            result = self.sheets_service.spreadsheets().values().get(
+                spreadsheetId=file_id, range=sheet_name).execute()
             
-            # Read into pandas using read_excel. 
-            # If sheet_name is None, it defaults to the first sheet automatically.
-            return pd.read_excel(io.BytesIO(excel_data), sheet_name=sheet_name)
+            values = result.get('values', [])
+
+            if not values:
+                print(f"⚠️ No data found in sheet: {sheet_name}")
+                return None
+
+            # 3. Convert to a Pandas DataFrame safely
+            df = pd.DataFrame(values)
+            
+            # Promote the first row to be the column headers
+            if not df.empty:
+                df.columns = df.iloc[0]
+                df = df[1:].reset_index(drop=True)
+                
+            return df
             
         except Exception as e:
-            print(f"❌ Failed to export Google Sheet: {e}")
+            print(f"❌ Failed to read via Sheets API: {e}")
             return None
