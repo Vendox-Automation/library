@@ -19,11 +19,16 @@ class DriveManager:
             scopes: List of OAuth2 scopes for the Drive API.
         """
         if scopes is None:
-            scopes = ['https://www.googleapis.com/auth/drive']
+            scopes = [
+                'https://www.googleapis.com/auth/drive',
+                'https://www.googleapis.com/auth/spreadsheets.readonly'
+            ]
             
         self.creds = service_account.Credentials.from_service_account_file(
             service_account_file, scopes=scopes)
+        
         self.service = build('drive', 'v3', credentials=self.creds)
+        self.sheets_service = build('sheets', 'v4', credentials=self.creds)
 
     def get_folder_id_by_name(self, parent_id: str, target_name: str) -> Optional[str]:
         """
