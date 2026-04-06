@@ -26,7 +26,7 @@ class DriveManager:
             
         self.creds = service_account.Credentials.from_service_account_file(
             service_account_file, scopes=scopes)
-        
+
         self.service = build('drive', 'v3', credentials=self.creds)
         self.sheets_service = build('sheets', 'v4', credentials=self.creds)
 
@@ -127,13 +127,13 @@ class DriveManager:
 
     def read_sheet_from_drive(self, file_id: str, sheet_name: str = None) -> Optional[pd.DataFrame]:
         """
-        Exports a native Google Sheet to a CSV format and reads it into a Pandas DataFrame.
+        Reads a native Google Sheet directly using the Sheets API (bypasses export size limits).
 
         Args:
             file_id: The file ID of the Google Sheet.
-        
+            sheet_name: The name of the tab to read. If None, reads the first tab.
         Returns:
-            A Pandas DataFrame containing the Sheet data, or None if file_id is invalid.
+            A Pandas DataFrame containing the Sheet data, or None if failed.
         """
         if not file_id: return None
         try:
