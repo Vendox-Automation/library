@@ -7,7 +7,13 @@ from .webscraper import Scraper
 from .listener import GoogleSheetsListener
 from .database import Database
 from .service_account_manager import ServiceAccountManager
-from .report_downloader import run_login_and_report
+from .report_downloader import (
+    run_login_and_report,
+    extract_session,
+    merge_auth_headers,
+    replace_otp_urls_in_payload,
+    validate_login_frame
+)
 
 # Adding more classes/functions to the __init__.py for easier imports
 __all__ = [
@@ -21,4 +27,8 @@ __all__ = [
     "Database",
     "ServiceAccountManager",
     "run_login_and_report",
+    "extract_session",
+    "merge_auth_headers",
+    "replace_otp_urls_in_payload",
+    "validate_login_frame"
 ]

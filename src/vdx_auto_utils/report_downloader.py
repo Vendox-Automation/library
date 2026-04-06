@@ -44,7 +44,7 @@ def _deep_get(data: Any, path: str, default: Any = None) -> Any:
     return cur
 
 
-def _validate_login_frame(frame: Dict[str, Any]) -> None:
+def validate_login_frame(frame: Dict[str, Any]) -> None:
     """
     Ensure ``login_frame`` has required keys and sensible types.
 
@@ -115,7 +115,7 @@ def _read_len_delimited(buf: bytes, idx: int) -> Tuple[bytes, int]:
     return buf[idx:end], end
 
 
-def _extract_first_secret_from_otp_parameters(msg: bytes) -> Optional[bytes]:
+def extract_first_secret_from_otp_parameters(msg: bytes) -> Optional[bytes]:
     """
     Parse Google Authenticator migration ``OtpParameters`` blob for the first secret.
 
@@ -145,7 +145,7 @@ def _extract_first_secret_from_otp_parameters(msg: bytes) -> Optional[bytes]:
     return None
 
 
-def _extract_otp_secret_from_migration_url(migration_url: str) -> str:
+def extract_otp_secret_from_migration_url(migration_url: str) -> str:
     """
     Extract TOTP secret (base32, no padding) from an ``otpauth-migration://`` URL.
 
@@ -187,13 +187,13 @@ def _extract_otp_secret_from_migration_url(migration_url: str) -> str:
         data, idx = _read_len_delimited(payload, idx)
         if field_no != 1:
             continue
-        secret_bytes = _extract_first_secret_from_otp_parameters(data)
+        secret_bytes = extract_first_secret_from_otp_parameters(data)
         if secret_bytes:
             return base64.b32encode(secret_bytes).decode("utf-8").replace("=", "")
     raise RuntimeError("Failed to extract OTP secret from migration URL.")
 
 
-def _replace_otp_urls_in_payload(
+def replace_otp_urls_in_payload(
     payload: Any,
     key_path: str = "",
     *,
@@ -214,17 +214,17 @@ def _replace_otp_urls_in_payload(
         out: Dict[str, Any] = {}
         for k, v in payload.items():
             child_path = f"{key_path}.{k}" if key_path else str(k)
-            out[k] = _replace_otp_urls_in_payload(v, child_path, log=log)
+            out[k] = replace_otp_urls_in_payload(v, child_path, log=log)
         return out
     if isinstance(payload, list):
         return [
-            _replace_otp_urls_in_payload(v, f"{key_path}[{i}]", log=log)
+            replace_otp_urls_in_payload(v, f"{key_path}[{i}]", log=log)
             for i, v in enumerate(payload)
         ]
     if isinstance(payload, str):
         stripped = payload.strip()
         if stripped.startswith("otpauth-migration://"):
-            secret = _extract_otp_secret_from_migration_url(stripped)
+            secret = extract_otp_secret_from_migration_url(stripped)
             otp_code = pyotp.TOTP(secret).now()
             msg = f"OTP generated for login payload field: {key_path}"
             (log or logging.getLogger(__name__)).info(msg)
@@ -232,7 +232,7 @@ def _replace_otp_urls_in_payload(
     return payload
 
 
-def _extract_session(login_response: requests.Response) -> Dict[str, Any]:
+def extract_session(login_response: requests.Response) -> Dict[str, Any]:
     """
     Build session dict from login HTTP response (cookies, token, ids, raw JSON).
 
@@ -289,7 +289,7 @@ def _extract_session(login_response: requests.Response) -> Dict[str, Any]:
     return session
 
 
-def _authorization_header_value(token: str, authorization_prefix: Optional[str]) -> str:
+def authorization_header_value(token: str, authorization_prefix: Optional[str]) -> str:
     """
     Build ``Authorization`` header value from token and optional scheme prefix.
 
@@ -310,7 +310,7 @@ def _authorization_header_value(token: str, authorization_prefix: Optional[str])
     return f"{prefix} {token}".strip()
 
 
-def _merge_auth_headers(
+def merge_auth_headers(
     base_headers: Dict[str, Any],
     session: Dict[str, Any],
     authorization_prefix: Optional[str],
@@ -320,7 +320,7 @@ def _merge_auth_headers(
 
     Args:
         base_headers: Report-specific headers from config.
-        session: Output of ``_extract_session``.
+        session: Output of ``extract_session``.
         authorization_prefix: Passed to ``_authorization_header_value`` for token.
 
     Returns:
@@ -331,13 +331,13 @@ def _merge_auth_headers(
     cookie = session.get("cookie", "")
     has_auth = any(k.lower() == "authorization" for k in headers)
     if token and not has_auth:
-        headers["Authorization"] = _authorization_header_value(token, authorization_prefix)
+        headers["Authorization"] = authorization_header_value(token, authorization_prefix)
     if cookie and not any(k.lower() == "cookie" for k in headers):
         headers["Cookie"] = cookie
     return headers
 
 
-def _normalize_rows(data: Any) -> List[Dict[str, Any]]:
+def normalize_rows(data: Any) -> List[Dict[str, Any]]:
     """
     Turn assorted JSON shapes into a flat list of row dicts for CSV export.
 
@@ -360,7 +360,7 @@ def _normalize_rows(data: Any) -> List[Dict[str, Any]]:
     return []
 
 
-def _ensure_parent_dir(path: str) -> None:
+def ensure_parent_dir(path: str) -> None:
     """
     Create parent directory for a file path if it has a non-empty parent.
 
@@ -372,7 +372,7 @@ def _ensure_parent_dir(path: str) -> None:
         os.makedirs(parent, exist_ok=True)
 
 
-def _write_csv(path: str, rows: List[Dict[str, Any]]) -> None:
+def write_csv(path: str, rows: List[Dict[str, Any]]) -> None:
     """
     Write rows to CSV with UTF-8 BOM and union of all keys as columns.
 
@@ -387,14 +387,14 @@ def _write_csv(path: str, rows: List[Dict[str, Any]]) -> None:
             if key not in seen:
                 seen.add(key)
                 headers.append(key)
-    _ensure_parent_dir(path)
+    ensure_parent_dir(path)
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=headers, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
 
-def _write_json(path: str, data: Any) -> None:
+def write_json(path: str, data: Any) -> None:
     """
     Write JSON to disk with UTF-8 and readable indentation.
 
@@ -402,12 +402,12 @@ def _write_json(path: str, data: Any) -> None:
         path: Output file path.
         data: Any JSON-serializable object.
     """
-    _ensure_parent_dir(path)
+    ensure_parent_dir(path)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def _resolve_report_dates(date_config: Optional[Dict[str, Any]]) -> Tuple[str, str]:
+def resolve_report_dates(date_config: Optional[Dict[str, Any]]) -> Tuple[str, str]:
     """
     Resolve start/end date strings for URL and filename placeholders.
 
@@ -439,7 +439,7 @@ def _resolve_report_dates(date_config: Optional[Dict[str, Any]]) -> Tuple[str, s
     return start_dt.strftime(report_date_format), end_dt.strftime(report_date_format)
 
 
-def _render_filename_template(template: str, variables: Dict[str, Any]) -> str:
+def render_filename_template(template: str, variables: Dict[str, Any]) -> str:
     """
     Replace ``{key}`` placeholders in a filename template.
 
@@ -495,9 +495,9 @@ def run_login_and_report(
         requests.HTTPError: HTTP error from login or report request.
     """
     log = logger or logging.getLogger(__name__)
-    _validate_login_frame(login_frame)
+    validate_login_frame(login_frame)
     login_url = login_frame["login_url"]
-    login_payload = _replace_otp_urls_in_payload(dict(login_frame["login_payload"]), log=log)
+    login_payload = replace_otp_urls_in_payload(dict(login_frame["login_payload"]), log=log)
     login_headers = login_frame["login_headers"]
 
     common = report_config.get("common", {}) or {}
@@ -518,13 +518,13 @@ def run_login_and_report(
         )
     login_resp.raise_for_status()
 
-    session = _extract_session(login_resp)
+    session = extract_session(login_resp)
     auth_source = "token" if session.get("token") else ("cookie" if session.get("cookie") else "none")
     log.info("Login success. Auth source: %s", auth_source)
     if auth_source == "none":
         raise RuntimeError("Login did not return cookie/token.")
 
-    start_date, end_date = _resolve_report_dates(date_config)
+    start_date, end_date = resolve_report_dates(date_config)
     current_timestamp = int(time.time())
     log.info("Resolved date range: %s -> %s", start_date, end_date)
 
@@ -536,7 +536,7 @@ def run_login_and_report(
         report_url = str(report.get("report_url", "")).strip()
         report_method = str(report.get("report_method", common.get("report_method", "GET"))).upper().strip()
         report_payload = report.get("report_payload", {}) or {}
-        report_headers = _merge_auth_headers(
+        report_headers = merge_auth_headers(
             report.get("report_headers", {}), session, authorization_prefix
         )
         save_path = str(report.get("save_path", common.get("save_path", ""))).strip()
@@ -565,7 +565,7 @@ def run_login_and_report(
             "report_date_compact": end_date.replace("-", ""),
             "timestamp": current_timestamp,
         }
-        output_filename = _render_filename_template(output_template, filename_vars)
+        output_filename = render_filename_template(output_template, filename_vars)
         if "." not in os.path.basename(output_filename):
             output_filename = f"{output_filename}.csv"
 
@@ -595,16 +595,16 @@ def run_login_and_report(
         except Exception:
             report_json = {"raw_text": report_resp.text}
 
-        rows = _normalize_rows(report_json)
+        rows = normalize_rows(report_json)
         output_path = os.path.join(save_path, output_filename)
 
         log.info("[3/3] Saving output for %s...", report_name)
         if rows:
-            _write_csv(output_path, rows)
+            write_csv(output_path, rows)
             log.info("Saved CSV for %s with %s rows", report_name, len(rows))
         else:
             json_output = output_path.replace(".csv", ".json")
-            _write_json(json_output, report_json)
+            write_json(json_output, report_json)
             output_path = json_output
             log.info("No tabular rows detected for %s, saved JSON fallback", report_name)
 
