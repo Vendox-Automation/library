@@ -23,7 +23,8 @@ dependencies = [
     "oauth2client",
     "selenium",
     "requests",
-    "psycopg2"
+    "psycopg2",
+    "pyotp",
 ]
 
 [tool.setuptools.packages.find]

@@ -7,6 +7,7 @@ from .webscraper import Scraper
 from .listener import GoogleSheetsListener
 from .database import Database
 from .service_account_manager import ServiceAccountManager
+from .report_downloader import run_login_and_report
 
 # Adding more classes/functions to the __init__.py for easier imports
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "GoogleSheetsListener",
     "Database",
     "ServiceAccountManager",
+    "run_login_and_report",
 ]
