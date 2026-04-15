@@ -30,6 +30,21 @@ class DriveManager:
         self.service = build('drive', 'v3', credentials=self.creds)
         self.sheets_service = build('sheets', 'v4', credentials=self.creds)
 
+    def search_files(self, query: str) -> List[Dict]:
+        """
+        Searches for files in Google Drive based on a query string.
+
+        Args:
+            query: The search query string (e.g., "name contains 'report' and trashed = false").
+
+        Returns:
+            A list of file metadata dictionaries matching the query.
+        """
+        response = self.service.files().list(
+            q=query, spaces='drive', supportsAllDrives=True, 
+            includeItemsFromAllDrives=True, fields='files(id, name)').execute()
+        return response.get('files', [])
+
     def get_folder_id_by_name(self, parent_id: str, target_name: str) -> Optional[str]:
         """
         Finds a folder's ID by its name within a specific parent folder.
