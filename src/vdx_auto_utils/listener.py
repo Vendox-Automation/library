@@ -31,7 +31,7 @@ class GoogleSheetsListener:
         self._is_listening = False
         
         # Internal Authentication
-        self.creds = Credentials.from_service_account_file(credentials_file, self.SCOPES)
+        self.creds = Credentials.from_service_account_file(credentials_file, scopes=self.SCOPES)
         self.client = gspread.authorize(self.creds)
         
         socket.setdefaulttimeout(120)
