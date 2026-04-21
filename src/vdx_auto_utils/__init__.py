@@ -14,8 +14,8 @@ from .report_downloader import (
     replace_otp_urls_in_payload,
     validate_login_frame
 )
+from .retry_utils import with_retry
 
-# Adding more classes/functions to the __init__.py for easier imports
 __all__ = [
     "CSVFilter",
     "split_dataframe",
@@ -30,5 +30,6 @@ __all__ = [
     "extract_session",
     "merge_auth_headers",
     "replace_otp_urls_in_payload",
-    "validate_login_frame"
+    "validate_login_frame",
+    "with_retry",
 ]
