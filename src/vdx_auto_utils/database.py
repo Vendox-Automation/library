@@ -144,6 +144,40 @@ class Database:
         else:
             raise ValueError(f"Invalid database type: {self.database_type}")
 
+    def update_row(self, update_query: str, values: tuple):
+        """
+        Update row(s) using a parameterized query.
+
+        Args:
+            update_query (str): SQL UPDATE query with placeholders (e.g., "UPDATE t SET col=%s WHERE id=%s")
+            values (tuple): Tuple of values for the placeholders
+
+        Returns:
+            bool: True if update succeeded, False otherwise
+
+        Raises:
+            ConnectionError: If database is not connected
+            ValueError: If database_type is not supported
+        """
+        if self.database_type == "supabase":
+            if not self.connection:
+                raise ConnectionError("Database not connected. Call connect() first.")
+            try:
+                cursor = self.connection.cursor()
+                cursor.execute(update_query, values)
+                self.connection.commit()
+                cursor.close()
+                print("Row updated successfully!")
+                return True
+            except Exception as e:
+                msg = str(e)
+                print(f"Error updating row: {msg}")
+                if self.connection:
+                    self.connection.rollback()
+                return False
+        else:
+            raise ValueError(f"Invalid database type: {self.database_type}")
+
     def read_table(self, query: str):
         """
         Execute a SELECT query and return results as a pandas DataFrame.
