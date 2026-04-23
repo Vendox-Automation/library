@@ -345,14 +345,15 @@ class GoogleSheetUploader:
         # Determine the actual start row
         final_start_row = start_row
         if append:
-            def _get_all_data(client):
-                ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
-                # get_all_values() returns the whole grid up to the absolute last populated row
-                return ws.get_all_values()
+            anchor_col = list(gsheet_layout_map.keys())[0]
+            anchor_idx = self._col_letter_to_index(anchor_col)
 
-            sheet_data = self._run(_get_all_data)
-            # Find the true bottom of the sheet regardless of which columns are used
-            final_start_row = max(len(sheet_data) + 1, start_row)
+            def _get_col(client):
+                ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                return ws.col_values(anchor_idx)
+
+            col_values = self._run(_get_col)
+            final_start_row = max(len(col_values) + 1, start_row)
 
         # Expand grid if needed
         needed_rows = final_start_row + len(dataframe) - 1
