@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vdx_auto_utils"
-version = "0.8.2" #Update the version everytime an update is finalized
+version = "0.8.3" #Update the version everytime an update is finalized
 description = "Internal automation tools for Vendox"
 authors = [
     {name = "Potter", email = "potter@4896.co"},
