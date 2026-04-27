@@ -1,3 +1,4 @@
+import calendar as _cal
 import requests
 import logging
 import os
@@ -156,6 +157,190 @@ class TelegramBot:
             requests.post(endpoint, data=payload, timeout=10)
         except Exception as e:  
             logger.error(f"Error answering callback query: {e}")
+
+    def send_calendar(self, group_id: str, year: int, month: int,
+                      title: str = "📅 Select a date:", topic_id: int = None) -> dict:
+        """
+        Sends a calendar date-picker message with an inline keyboard.
+
+        Convenience wrapper around ``make_calendar()`` + ``send_message()``.
+        The user taps a day and your bot receives a callback query whose
+        ``data`` field you decode with ``parse_calendar_callback()``.
+
+        Args:
+            group_id (str): Chat ID of the group or channel.
+            year     (int): Year of the month to display.
+            month    (int): Month to display (1–12).
+            title    (str, optional): Caption shown above the keyboard.
+                Defaults to ``"📅 Select a date:"``.
+            topic_id (int, optional): Forum topic (message_thread_id), if needed.
+
+        Returns:
+            dict: The raw Telegram API response, or ``None`` on failure.
+
+        Example::
+
+            from vdx_auto_utils import TelegramBot
+            from datetime import date
+
+            bot = TelegramBot("YOUR_TOKEN")
+
+            # 1. Send the calendar for the current month
+            today = date.today()
+            bot.send_calendar(chat_id, today.year, today.month, title="Pick a report date:")
+
+            # 2. In your callback handler loop:
+            for update in bot.get_updates(offset=...):
+                query = update.get("callback_query")
+                if not query:
+                    continue
+
+                result = bot.parse_calendar_callback(query["data"])
+                bot.answer_callback_query(query["id"])
+
+                if result["action"] == "day":
+                    bot.send_message(query["message"]["chat"]["id"],
+                                     f"You picked: {result['date']}")
+
+                elif result["action"] == "nav":
+                    # Re-send / edit the message with the new month's keyboard
+                    new_buttons = bot.make_calendar(result["year"], result["month"])
+        """
+        buttons = self.make_calendar(year, month)
+        return self.send_message(
+            group_id=group_id,
+            message=title,
+            buttons=buttons,
+            topic_id=topic_id,
+        )
+
+    @staticmethod
+    def make_calendar(year: int, month: int) -> list:
+        """
+        Generates an inline keyboard layout for a month calendar date picker.
+
+        Returns a ``list[list[dict]]`` compatible with the ``buttons`` parameter
+        of ``send_message`` and ``send_calendar``.
+
+        Keyboard layout
+        ---------------
+        Row 0 — Navigation bar:
+            [◀]  [Month YYYY]  [▶]
+        Row 1 — Day-of-week headers (non-clickable):
+            [Mo] [Tu] [We] [Th] [Fr] [Sa] [Su]
+        Rows 2-7 — Week rows:
+            Numbered day buttons; empty cells (padding days) show a blank space
+            and use ``"CAL:IGNORE"`` so tapping them does nothing.
+
+        Callback data format
+        --------------------
+        - Day selected  : ``"CAL:DAY:YYYY-MM-DD"``
+        - Navigate month: ``"CAL:NAV:YYYY-MM"``
+        - Non-clickable : ``"CAL:IGNORE"``
+
+        Pass the resulting list directly to ``send_message(buttons=...)`` or let
+        ``send_calendar`` do it for you. Decode the callback with
+        ``parse_calendar_callback()``.
+
+        Args:
+            year  (int): Year to display (e.g. 2026).
+            month (int): Month to display (1 = January … 12 = December).
+
+        Returns:
+            list: Nested list of button dicts for an inline keyboard.
+
+        Example::
+
+            bot = TelegramBot("YOUR_TOKEN")
+            buttons = bot.make_calendar(2026, 4)
+            bot.send_message(chat_id, "Pick a date:", buttons=buttons)
+        """
+        _DOW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+
+        prev_year,  prev_month  = (year - 1, 12) if month == 1  else (year, month - 1)
+        next_year,  next_month  = (year + 1,  1) if month == 12 else (year, month + 1)
+
+        nav_row = [
+            {"text": "◀", "callback_data": f"CAL:NAV:{prev_year}-{prev_month:02d}"},
+            {"text": f"{_cal.month_name[month]} {year}", "callback_data": "CAL:IGNORE"},
+            {"text": "▶", "callback_data": f"CAL:NAV:{next_year}-{next_month:02d}"},
+        ]
+        dow_row = [{"text": d, "callback_data": "CAL:IGNORE"} for d in _DOW]
+
+        week_rows = []
+        for week in _cal.monthcalendar(year, month):
+            row = []
+            for day in week:
+                if day == 0:
+                    row.append({"text": " ", "callback_data": "CAL:IGNORE"})
+                else:
+                    date_str = f"{year}-{month:02d}-{day:02d}"
+                    row.append({"text": str(day), "callback_data": f"CAL:DAY:{date_str}"})
+            week_rows.append(row)
+
+        return [nav_row, dow_row] + week_rows
+
+    @staticmethod
+    def parse_calendar_callback(data: str) -> dict:
+        """
+        Decodes a callback_data string produced by ``make_calendar()``.
+
+        Call this inside your callback query handler to find out what the
+        user tapped.
+
+        Return value
+        ------------
+        A dict with an ``"action"`` key:
+
+        ``"day"``
+            User tapped a date.
+            Extra key: ``"date"`` (str, ``"YYYY-MM-DD"``).
+
+        ``"nav"``
+            User tapped ◀ or ▶ to change month.
+            Extra keys: ``"year"`` (int), ``"month"`` (int).
+            Call ``make_calendar(year, month)`` with these to get the new keyboard.
+
+        ``"ignore"``
+            User tapped a header, blank cell, or the month label.
+            Acknowledge the callback and do nothing else.
+
+        Args:
+            data (str): The ``callback_data`` field from a Telegram callback query.
+
+        Returns:
+            dict: Decoded action dict (see above).
+
+        Example::
+
+            result = bot.parse_calendar_callback(query["data"])
+
+            if result["action"] == "day":
+                print("User picked:", result["date"])      # "2026-04-15"
+
+            elif result["action"] == "nav":
+                new_buttons = bot.make_calendar(result["year"], result["month"])
+                # edit the message to show the new month's keyboard …
+
+            else:
+                pass  # non-interactive tap — nothing to do
+        """
+        if not isinstance(data, str) or not data.startswith("CAL:"):
+            return {"action": "ignore"}
+
+        parts = data.split(":", 2)
+
+        if parts[1] == "DAY" and len(parts) == 3:
+            return {"action": "day", "date": parts[2]}
+
+        if parts[1] == "NAV" and len(parts) == 3:
+            try:
+                y, m = parts[2].split("-")
+                return {"action": "nav", "year": int(y), "month": int(m)}
+            except ValueError:
+                pass
+
+        return {"action": "ignore"}
 
     def get_chat_admins(self, group_id: str) -> list:
         """
