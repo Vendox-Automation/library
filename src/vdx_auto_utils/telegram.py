@@ -214,6 +214,69 @@ class TelegramBot:
             topic_id=topic_id,
         )
 
+    def edit_message(self, group_id: str, message_id: int, text: str,
+                     buttons: list = None) -> dict:
+        """
+        Edits the text (and optionally the inline keyboard) of an existing message.
+
+        Args:
+            group_id   (str): Chat ID of the group or channel.
+            message_id (int): ID of the message to edit.
+            text       (str): New message text. Supports HTML formatting.
+            buttons    (list, optional):
+                - ``None``  → leave the existing keyboard unchanged.
+                - ``[]``    → remove the keyboard entirely.
+                - ``[...]`` → replace the keyboard with this new layout.
+
+        Returns:
+            dict: The Telegram API response, or ``None`` on failure.
+        """
+        endpoint = f"{self.base_url}/editMessageText"
+        payload  = {
+            "chat_id":    group_id,
+            "message_id": message_id,
+            "text":       text,
+            "parse_mode": "HTML",
+        }
+        if buttons is not None:
+            payload["reply_markup"] = json.dumps({"inline_keyboard": buttons})
+        try:
+            response = requests.post(endpoint, data=payload, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to edit message: {e}")
+            return None
+
+    def edit_message_keyboard(self, group_id: str, message_id: int,
+                              buttons: list) -> dict:
+        """
+        Replaces the inline keyboard of an existing message without changing its text.
+
+        Use this for calendar navigation (◀/▶) so only the month grid is swapped.
+
+        Args:
+            group_id   (str): Chat ID of the group or channel.
+            message_id (int): ID of the message whose keyboard you want to update.
+            buttons    (list): New keyboard layout (pass ``[]`` to remove entirely).
+
+        Returns:
+            dict: The Telegram API response, or ``None`` on failure.
+        """
+        endpoint = f"{self.base_url}/editMessageReplyMarkup"
+        payload  = {
+            "chat_id":      group_id,
+            "message_id":   message_id,
+            "reply_markup": json.dumps({"inline_keyboard": buttons}),
+        }
+        try:
+            response = requests.post(endpoint, data=payload, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to edit message keyboard: {e}")
+            return None
+
     @staticmethod
     def make_calendar(year: int, month: int) -> list:
         """
