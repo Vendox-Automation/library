@@ -159,21 +159,26 @@ class TelegramBot:
             logger.error(f"Error answering callback query: {e}")
 
     def send_calendar(self, group_id: str, year: int, month: int,
-                      title: str = "📅 Select a date:", topic_id: int = None) -> dict:
+                      title: str = "📅 Select a date:", topic_id: int = None,
+                      step: str = "s", picked_start: str = "") -> dict:
         """
         Sends a calendar date-picker message with an inline keyboard.
 
         Convenience wrapper around ``make_calendar()`` + ``send_message()``.
-        The user taps a day and your bot receives a callback query whose
-        ``data`` field you decode with ``parse_calendar_callback()``.
+        All state (current step, picked start date) is baked into each button's
+        ``callback_data`` so the bot stays stateless across restarts.
 
         Args:
-            group_id (str): Chat ID of the group or channel.
-            year     (int): Year of the month to display.
-            month    (int): Month to display (1–12).
-            title    (str, optional): Caption shown above the keyboard.
-                Defaults to ``"📅 Select a date:"``.
-            topic_id (int, optional): Forum topic (message_thread_id), if needed.
+            group_id     (str): Chat ID of the group or channel.
+            year         (int): Year of the month to display.
+            month        (int): Month to display (1–12).
+            title        (str, optional): Caption shown above the keyboard.
+            topic_id     (int, optional): Forum topic (message_thread_id).
+            step         (str, optional): ``"s"`` = picking start date (default),
+                ``"e"`` = picking end date. Dates before ``picked_start`` are
+                greyed out when ``step="e"``.
+            picked_start (str, optional): Already-chosen start date
+                (``"YYYY-MM-DD"``). Only relevant when ``step="e"``.
 
         Returns:
             dict: The raw Telegram API response, or ``None`` on failure.
@@ -184,29 +189,36 @@ class TelegramBot:
             from datetime import date
 
             bot = TelegramBot("YOUR_TOKEN")
-
-            # 1. Send the calendar for the current month
             today = date.today()
-            bot.send_calendar(chat_id, today.year, today.month, title="Pick a report date:")
 
-            # 2. In your callback handler loop:
-            for update in bot.get_updates(offset=...):
-                query = update.get("callback_query")
-                if not query:
-                    continue
+            # Step 1 — ask for start date
+            resp = bot.send_calendar(chat_id, today.year, today.month,
+                                     title="📅 Select <b>start</b> date:")
+            msg_id = resp["result"]["message_id"]
 
-                result = bot.parse_calendar_callback(query["data"])
-                bot.answer_callback_query(query["id"])
+            # … in callback handler:
+            result = bot.parse_calendar_callback(query["data"])
+            bot.answer_callback_query(query["id"])
 
-                if result["action"] == "day":
-                    bot.send_message(query["message"]["chat"]["id"],
-                                     f"You picked: {result['date']}")
+            if result["action"] == "day" and result["step"] == "s":
+                # Step 2 — ask for end date (greys out earlier days)
+                bot.edit_message(chat_id, msg_id,
+                    f"Start: <b>{result['date']}</b> — now pick end date:",
+                    buttons=bot.make_calendar(today.year, today.month,
+                                              step="e", picked_start=result["date"]))
 
-                elif result["action"] == "nav":
-                    # Re-send / edit the message with the new month's keyboard
-                    new_buttons = bot.make_calendar(result["year"], result["month"])
+            elif result["action"] == "day" and result["step"] == "e":
+                bot.edit_message(chat_id, msg_id,
+                    f"✅ <b>{result['picked_start']}</b> → <b>{result['date']}</b>",
+                    buttons=[])
+
+            elif result["action"] == "nav":
+                bot.edit_message_keyboard(chat_id, msg_id,
+                    bot.make_calendar(result["year"], result["month"],
+                                      step=result["step"],
+                                      picked_start=result["picked_start"]))
         """
-        buttons = self.make_calendar(year, month)
+        buttons = self.make_calendar(year, month, step=step, picked_start=picked_start)
         return self.send_message(
             group_id=group_id,
             message=title,
@@ -278,67 +290,90 @@ class TelegramBot:
             return None
 
     @staticmethod
-    def make_calendar(year: int, month: int) -> list:
+    def make_calendar(year: int, month: int,
+                      step: str = "s", picked_start: str = "") -> list:
         """
-        Generates an inline keyboard layout for a month calendar date picker.
+        Generates an inline keyboard for a month calendar date picker.
 
-        Returns a ``list[list[dict]]`` compatible with the ``buttons`` parameter
-        of ``send_message`` and ``send_calendar``.
+        All state is encoded in each button's ``callback_data`` so the bot
+        needs no Python variables to remember where it is in the flow.
 
         Keyboard layout
         ---------------
-        Row 0 — Navigation bar:
-            [◀]  [Month YYYY]  [▶]
-        Row 1 — Day-of-week headers (non-clickable):
-            [Mo] [Tu] [We] [Th] [Fr] [Sa] [Su]
-        Rows 2-7 — Week rows:
-            Numbered day buttons; empty cells (padding days) show a blank space
-            and use ``"CAL:IGNORE"`` so tapping them does nothing.
+        Row 0  Navigation bar : [◀]  [Month YYYY]  [▶]
+        Row 1  Day headers    : [Mo] [Tu] [We] [Th] [Fr] [Sa] [Su]  (non-clickable)
+        Rows 2-7  Week rows   : day numbers; today shown as ``[D]``;
+                                days before ``picked_start`` shown as ``·``
+                                (non-clickable) when ``step="e"``.
 
         Callback data format
         --------------------
-        - Day selected  : ``"CAL:DAY:YYYY-MM-DD"``
-        - Navigate month: ``"CAL:NAV:YYYY-MM"``
-        - Non-clickable : ``"CAL:IGNORE"``
+        - Navigate : ``"cal:nav:YYYY-MM:STEP[:START]"``
+        - Day tap  : ``"cal:day:YYYY-MM-DD:STEP[:START]"``
+        - Ignored  : ``"cal:ignore"``
 
-        Pass the resulting list directly to ``send_message(buttons=...)`` or let
-        ``send_calendar`` do it for you. Decode the callback with
-        ``parse_calendar_callback()``.
+        Decode the result with ``parse_calendar_callback()``, which returns
+        ``step`` and ``picked_start`` so you never need your own state variables.
 
         Args:
-            year  (int): Year to display (e.g. 2026).
-            month (int): Month to display (1 = January … 12 = December).
+            year         (int): Year to display.
+            month        (int): Month to display (1–12).
+            step         (str): ``"s"`` = picking start date (default);
+                ``"e"`` = picking end date.
+            picked_start (str): Already-chosen start date (``"YYYY-MM-DD"``).
+                Days before this are greyed out when ``step="e"``.
 
         Returns:
             list: Nested list of button dicts for an inline keyboard.
 
         Example::
 
-            bot = TelegramBot("YOUR_TOKEN")
-            buttons = bot.make_calendar(2026, 4)
-            bot.send_message(chat_id, "Pick a date:", buttons=buttons)
+            # Single date
+            bot.send_message(chat_id, "Pick a date:",
+                             buttons=bot.make_calendar(2026, 4))
+
+            # Date range — step 2 (grey out days before the chosen start)
+            bot.send_message(chat_id, "Now pick end date:",
+                             buttons=bot.make_calendar(2026, 4,
+                                                       step="e",
+                                                       picked_start="2026-04-10"))
         """
-        _DOW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+        from datetime import date as _date
+        _DOW      = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+        today_str = _date.today().isoformat()
+        ctx       = f":{picked_start}" if picked_start else ""
 
-        prev_year,  prev_month  = (year - 1, 12) if month == 1  else (year, month - 1)
-        next_year,  next_month  = (year + 1,  1) if month == 12 else (year, month + 1)
+        if month == 1:
+            prev_ym = f"{year - 1}-12"
+        else:
+            prev_ym = f"{year}-{month - 1:02d}"
+        if month == 12:
+            next_ym = f"{year + 1}-01"
+        else:
+            next_ym = f"{year}-{month + 1:02d}"
 
+        title   = _cal.month_name[month] + f" {year}"
         nav_row = [
-            {"text": "◀", "callback_data": f"CAL:NAV:{prev_year}-{prev_month:02d}"},
-            {"text": f"{_cal.month_name[month]} {year}", "callback_data": "CAL:IGNORE"},
-            {"text": "▶", "callback_data": f"CAL:NAV:{next_year}-{next_month:02d}"},
+            {"text": "◀",        "callback_data": f"cal:nav:{prev_ym}:{step}{ctx}"},
+            {"text": f" {title} ","callback_data": "cal:ignore"},
+            {"text": "▶",        "callback_data": f"cal:nav:{next_ym}:{step}{ctx}"},
         ]
-        dow_row = [{"text": d, "callback_data": "CAL:IGNORE"} for d in _DOW]
+        dow_row = [{"text": d, "callback_data": "cal:ignore"} for d in _DOW]
 
         week_rows = []
         for week in _cal.monthcalendar(year, month):
             row = []
             for day in week:
                 if day == 0:
-                    row.append({"text": " ", "callback_data": "CAL:IGNORE"})
+                    row.append({"text": " ", "callback_data": "cal:ignore"})
+                    continue
+                date_str = f"{year}-{month:02d}-{day:02d}"
+                if step == "e" and picked_start and date_str < picked_start:
+                    row.append({"text": "·", "callback_data": "cal:ignore"})
                 else:
-                    date_str = f"{year}-{month:02d}-{day:02d}"
-                    row.append({"text": str(day), "callback_data": f"CAL:DAY:{date_str}"})
+                    label = f"[{day}]" if date_str == today_str else str(day)
+                    row.append({"text": label,
+                                "callback_data": f"cal:day:{date_str}:{step}{ctx}"})
             week_rows.append(row)
 
         return [nav_row, dow_row] + week_rows
@@ -346,27 +381,34 @@ class TelegramBot:
     @staticmethod
     def parse_calendar_callback(data: str) -> dict:
         """
-        Decodes a callback_data string produced by ``make_calendar()``.
+        Decodes a ``callback_data`` string produced by ``make_calendar()``.
 
-        Call this inside your callback query handler to find out what the
-        user tapped.
+        Because ``make_calendar`` bakes ``step`` and ``picked_start`` into every
+        button, the dict returned here contains everything needed to respond —
+        no external state variables required.
 
         Return value
         ------------
         A dict with an ``"action"`` key:
 
         ``"day"``
-            User tapped a date.
-            Extra key: ``"date"`` (str, ``"YYYY-MM-DD"``).
+            User tapped a date. Extra keys:
+
+            - ``"date"``         (str)  ``"YYYY-MM-DD"`` — the tapped date.
+            - ``"step"``         (str)  ``"s"`` or ``"e"``.
+            - ``"picked_start"`` (str)  The already-chosen start date, or ``""``
+              when none has been chosen yet.
 
         ``"nav"``
-            User tapped ◀ or ▶ to change month.
-            Extra keys: ``"year"`` (int), ``"month"`` (int).
-            Call ``make_calendar(year, month)`` with these to get the new keyboard.
+            User tapped ◀ or ▶. Extra keys:
+
+            - ``"year"``, ``"month"`` (int) — target month to display.
+            - ``"step"``              (str) — carry this through to ``make_calendar``.
+            - ``"picked_start"``      (str) — carry this through to ``make_calendar``.
 
         ``"ignore"``
-            User tapped a header, blank cell, or the month label.
-            Acknowledge the callback and do nothing else.
+            Non-interactive cell (header, blank, month label). Just acknowledge
+            the callback and do nothing.
 
         Args:
             data (str): The ``callback_data`` field from a Telegram callback query.
@@ -377,30 +419,57 @@ class TelegramBot:
         Example::
 
             result = bot.parse_calendar_callback(query["data"])
+            bot.answer_callback_query(query["id"])
 
-            if result["action"] == "day":
-                print("User picked:", result["date"])      # "2026-04-15"
+            if result["action"] == "day" and result["step"] == "s":
+                # Start date chosen — switch to end-date picking
+                bot.edit_message(chat_id, msg_id,
+                    f"Start: <b>{result['date']}</b> — pick end date:",
+                    buttons=bot.make_calendar(year, month,
+                                              step="e",
+                                              picked_start=result["date"]))
+
+            elif result["action"] == "day" and result["step"] == "e":
+                # Both dates confirmed
+                start, end = result["picked_start"], result["date"]
+                bot.edit_message(chat_id, msg_id,
+                    f"✅ <b>{start}</b> → <b>{end}</b>", buttons=[])
 
             elif result["action"] == "nav":
-                new_buttons = bot.make_calendar(result["year"], result["month"])
-                # edit the message to show the new month's keyboard …
-
-            else:
-                pass  # non-interactive tap — nothing to do
+                bot.edit_message_keyboard(chat_id, msg_id,
+                    bot.make_calendar(result["year"], result["month"],
+                                      step=result["step"],
+                                      picked_start=result["picked_start"]))
         """
-        if not isinstance(data, str) or not data.startswith("CAL:"):
+        if not isinstance(data, str) or not data.startswith("cal:"):
             return {"action": "ignore"}
 
-        parts = data.split(":", 2)
+        parts = data.split(":")
 
-        if parts[1] == "DAY" and len(parts) == 3:
-            return {"action": "day", "date": parts[2]}
+        if parts[1] == "ignore":
+            return {"action": "ignore"}
 
-        if parts[1] == "NAV" and len(parts) == 3:
+        if parts[1] == "day" and len(parts) >= 4:
+            # cal:day:YYYY-MM-DD:STEP[:START]
+            return {
+                "action":       "day",
+                "date":         parts[2],
+                "step":         parts[3],
+                "picked_start": parts[4] if len(parts) > 4 else "",
+            }
+
+        if parts[1] == "nav" and len(parts) >= 4:
+            # cal:nav:YYYY-MM:STEP[:START]
             try:
                 y, m = parts[2].split("-")
-                return {"action": "nav", "year": int(y), "month": int(m)}
-            except ValueError:
+                return {
+                    "action":       "nav",
+                    "year":         int(y),
+                    "month":        int(m),
+                    "step":         parts[3],
+                    "picked_start": parts[4] if len(parts) > 4 else "",
+                }
+            except (ValueError, IndexError):
                 pass
 
         return {"action": "ignore"}
