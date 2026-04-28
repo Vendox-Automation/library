@@ -12,6 +12,10 @@
     - [get_updates](#get_updates)
     - [answer_callback_query](#answer_callback_query)
     - [get_chat_admins](#get_chat_admins)
+    - [edit_message](#edit_message)
+    - [edit_message_keyboard](#edit_message_keyboard)
+    - [pin_message](#pin_message)
+    - [set_commands](#set_commands)
     - [send_calendar](#send_calendar)
     - [make_calendar](#make_calendar)
     - [parse_calendar_callback](#parse_calendar_callback)
@@ -26,7 +30,7 @@
 
 1. **Import the Class**:
     ```python
-    from functions.telegram import TelegramBot
+    from vdx_auto_utils import TelegramBot
     ```
 
 2. **Initialize**:
@@ -53,7 +57,7 @@
 
 ## Overview
 
-`TelegramBot` wraps the Telegram Bot HTTP API using the `requests` library. It supports sending text messages (with HTML formatting, inline buttons, and reply threading), sending files (with automatic type detection for photos, videos, and documents), polling for new updates, answering callback queries, and fetching group admin lists.
+`TelegramBot` wraps the Telegram Bot HTTP API using the `requests` library. It supports sending text messages (with HTML formatting, inline buttons, and reply threading), sending files (with automatic type detection for photos, videos, and documents), polling for new updates, answering callback queries, editing existing messages in-place, pinning messages, registering slash commands, and fetching group admin lists.
 
 Messages support `HTML` parse mode by default. All methods return `None` on failure and log errors via Python's `logging` module rather than raising exceptions — making it safe to use in automated workflows without crashing on transient Telegram API errors.
 
@@ -165,14 +169,110 @@ Returns a list of user IDs for all current administrators of a group. Useful for
 
 ---
 
+#### `edit_message`
+```python
+def edit_message(self, group_id: str, message_id: int, text: str,
+                 buttons: list = None) -> dict | None
+```
+Edits the text (and optionally the inline keyboard) of an existing message in-place. Use this to create an "updating panel" effect — the same message is reused rather than sending a new one.
+
+- **Parameters:**
+  - `group_id` (str): The Chat ID of the group or channel.
+  - `message_id` (int): ID of the message to edit.
+  - `text` (str): New message text. Supports HTML formatting.
+  - `buttons` (list, optional):
+    - `None` — leave the existing keyboard unchanged.
+    - `[]` — remove the keyboard entirely.
+    - `[...]` — replace the keyboard with this new layout.
+- **Returns:** The Telegram API JSON response as a dict, or `None` on failure.
+
+**Example:**
+```python
+# Replace text and remove the keyboard
+bot.edit_message(GROUP_ID, msg_id, "✅ <b>Done!</b>", buttons=[])
+
+# Replace text and attach a new keyboard
+bot.edit_message(GROUP_ID, msg_id, "Pick a date:", buttons=bot.make_calendar(2026, 4))
+```
+
+---
+
+#### `edit_message_keyboard`
+```python
+def edit_message_keyboard(self, group_id: str, message_id: int,
+                          buttons: list) -> dict | None
+```
+Replaces the inline keyboard of an existing message **without changing its text**. More efficient than `edit_message` for calendar navigation (◀/▶) where only the month grid needs to change.
+
+- **Parameters:**
+  - `group_id` (str): The Chat ID of the group or channel.
+  - `message_id` (int): ID of the message whose keyboard you want to update.
+  - `buttons` (list): New keyboard layout. Pass `[]` to remove the keyboard entirely.
+- **Returns:** The Telegram API JSON response as a dict, or `None` on failure.
+
+**Example:**
+```python
+# Swap to a different month's grid without rewriting the caption
+bot.edit_message_keyboard(GROUP_ID, msg_id,
+    bot.make_calendar(result["year"], result["month"],
+                      step=result["step"],
+                      picked_start=result["picked_start"]))
+```
+
+---
+
+#### `pin_message`
+```python
+def pin_message(self, group_id: str, message_id: int,
+                silent: bool = True) -> dict | None
+```
+Pins a message in a group or channel.
+
+- **Parameters:**
+  - `group_id` (str): The Chat ID of the group or channel.
+  - `message_id` (int): ID of the message to pin.
+  - `silent` (bool, optional): If `True` (default), pins without notifying members.
+- **Returns:** The Telegram API JSON response as a dict, or `None` on failure.
+
+**Example:**
+```python
+resp = bot.send_message(GROUP_ID, "📌 This report will stay pinned.")
+bot.pin_message(GROUP_ID, resp["result"]["message_id"])
+```
+
+---
+
+#### `set_commands`
+```python
+def set_commands(self, commands: list) -> dict | None
+```
+Registers bot commands so they appear in Telegram's `/` autocomplete menu. Call this once at startup.
+
+- **Parameters:**
+  - `commands` (list): A list of dicts, each with `"command"` (without the leading `/`) and `"description"` keys.
+- **Returns:** The Telegram API JSON response as a dict, or `None` on failure.
+
+**Example:**
+```python
+bot.set_commands([
+    {"command": "start",     "description": "Start the bot"},
+    {"command": "runreport", "description": "▶️ Run the bank sync report"},
+    {"command": "setdate",   "description": "📅 Set the date range"},
+    {"command": "status",    "description": "📊 Show current settings"},
+])
+```
+
+---
+
 #### `send_calendar`
 ```python
 def send_calendar(self, group_id: str, year: int, month: int,
-                  title: str = "📅 Select a date:", topic_id: int = None) -> dict | None
+                  title: str = "📅 Select a date:", topic_id: int = None,
+                  step: str = "s", picked_start: str = "") -> dict | None
 ```
 Sends a calendar date-picker message with an inline keyboard. The user taps a day and your bot receives a callback query that you decode with `parse_calendar_callback()`.
 
-This is a convenience wrapper — it calls `make_calendar()` internally and passes the result to `send_message()`.
+This is a convenience wrapper — it calls `make_calendar()` internally and passes the result to `send_message()`. All state (`step`, `picked_start`) is baked into each button's `callback_data` so the bot is fully stateless — it survives restarts and concurrent users.
 
 - **Parameters:**
   - `group_id` (str): The Chat ID of the target group or channel.
@@ -180,6 +280,8 @@ This is a convenience wrapper — it calls `make_calendar()` internally and pass
   - `month` (int): The month to display (1 = January … 12 = December).
   - `title` (str, optional): Caption shown above the keyboard. Defaults to `"📅 Select a date:"`.
   - `topic_id` (int, optional): Forum topic ID, if needed.
+  - `step` (str, optional): `"s"` = picking the start date (default); `"e"` = picking the end date. Dates before `picked_start` are greyed out when `step="e"`.
+  - `picked_start` (str, optional): Already-chosen start date in `"YYYY-MM-DD"` format. Only relevant when `step="e"`.
 - **Returns:** The Telegram API JSON response as a dict, or `None` on failure.
 
 **Example:**
@@ -187,7 +289,12 @@ This is a convenience wrapper — it calls `make_calendar()` internally and pass
 from datetime import date
 
 today = date.today()
-bot.send_calendar(GROUP_ID, today.year, today.month, title="Pick a report date:")
+
+# Step 1 — ask for start date
+resp = bot.send_calendar(GROUP_ID, today.year, today.month,
+                         title="📅 <b>Step 1</b>: Select the start date:",
+                         topic_id=TOPIC_ID, step="s")
+msg_id = resp["result"]["message_id"]
 ```
 
 ---
@@ -195,11 +302,12 @@ bot.send_calendar(GROUP_ID, today.year, today.month, title="Pick a report date:"
 #### `make_calendar`
 ```python
 @staticmethod
-def make_calendar(year: int, month: int) -> list
+def make_calendar(year: int, month: int,
+                  step: str = "s", picked_start: str = "") -> list
 ```
-Generates the raw inline keyboard layout for a calendar month. Returns a `list[list[dict]]` ready to pass directly to `send_message(buttons=...)`.
+Generates the raw inline keyboard layout for a calendar month. Returns a `list[list[dict]]` ready to pass directly to `send_message(buttons=...)`, `edit_message(buttons=...)`, or `edit_message_keyboard(buttons=...)`.
 
-Use this when you need to **edit** an existing calendar message to show a different month (e.g. after the user taps ◀ or ▶), rather than sending a new one.
+Use this when you need to swap the calendar grid on an existing message (e.g. after the user taps ◀ or ▶), rather than sending a new one.
 
 **Keyboard layout:**
 
@@ -207,25 +315,32 @@ Use this when you need to **edit** an existing calendar message to show a differ
 |-----|---------|
 | 0 | `[◀]` `[Month YYYY]` `[▶]` — navigation bar |
 | 1 | `[Mo]` `[Tu]` `[We]` `[Th]` `[Fr]` `[Sa]` `[Su]` — day headers (non-clickable) |
-| 2–7 | Numbered day buttons; padding days show a blank non-clickable cell |
+| 2–7 | Numbered day buttons; today shown as `[D]`; days before `picked_start` shown as `·` (non-clickable) when `step="e"` |
 
 **Callback data format produced:**
 
 | Tap | `callback_data` value |
 |-----|-----------------------|
-| A numbered day | `"CAL:DAY:YYYY-MM-DD"` |
-| ◀ or ▶ | `"CAL:NAV:YYYY-MM"` |
-| Header / blank cell | `"CAL:IGNORE"` |
+| A numbered day | `"cal:day:YYYY-MM-DD:STEP"` or `"cal:day:YYYY-MM-DD:STEP:START"` |
+| ◀ or ▶ | `"cal:nav:YYYY-MM:STEP"` or `"cal:nav:YYYY-MM:STEP:START"` |
+| Header / blank / month label | `"cal:ignore"` |
 
 - **Parameters:**
   - `year` (int): Year to display.
   - `month` (int): Month to display (1–12).
+  - `step` (str, optional): `"s"` = picking start date (default); `"e"` = picking end date.
+  - `picked_start` (str, optional): Already-chosen start date (`"YYYY-MM-DD"`). Days before this are greyed out when `step="e"`.
 - **Returns:** Nested list of button dicts for an inline keyboard.
 
 **Example:**
 ```python
+# Single date picker
 buttons = bot.make_calendar(2026, 4)
 bot.send_message(GROUP_ID, "Pick a date:", buttons=buttons)
+
+# Date range — step 2 (grey out days before chosen start)
+buttons = bot.make_calendar(2026, 4, step="e", picked_start="2026-04-10")
+bot.send_message(GROUP_ID, "Now pick the end date:", buttons=buttons)
 ```
 
 ---
@@ -237,29 +352,44 @@ def parse_calendar_callback(data: str) -> dict
 ```
 Decodes a `callback_data` string produced by `make_calendar()`. Call this inside your callback query handler to determine what the user tapped.
 
+Because `make_calendar` bakes `step` and `picked_start` into every button, the dict returned here contains everything you need to respond — no external state variables required.
+
 - **Parameters:**
   - `data` (str): The `callback_data` field from a Telegram callback query.
 - **Returns:** A dict with an `"action"` key. Possible shapes:
 
 | `action` | Extra keys | Meaning |
 |----------|------------|---------|
-| `"day"` | `"date"` (str, `"YYYY-MM-DD"`) | User picked a date |
-| `"nav"` | `"year"` (int), `"month"` (int) | User navigated to a new month |
+| `"day"` | `"date"` (str, `"YYYY-MM-DD"`), `"step"` (str), `"picked_start"` (str) | User picked a date |
+| `"nav"` | `"year"` (int), `"month"` (int), `"step"` (str), `"picked_start"` (str) | User navigated to a new month |
 | `"ignore"` | — | User tapped a header, blank cell, or the month label |
 
 **Example:**
 ```python
 result = bot.parse_calendar_callback(query["data"])
+bot.answer_callback_query(query["id"])
 
-if result["action"] == "day":
-    selected = result["date"]          # e.g. "2026-04-15"
+if result["action"] == "day" and result["step"] == "s":
+    # Start date chosen — switch to end-date step
+    bot.edit_message(chat_id, msg_id,
+        f"Start: <b>{result['date']}</b> — now pick end date:",
+        buttons=bot.make_calendar(int(result["date"][:4]), int(result["date"][5:7]),
+                                  step="e", picked_start=result["date"]))
+
+elif result["action"] == "day" and result["step"] == "e":
+    # Both dates confirmed
+    start, end = result["picked_start"], result["date"]
+    bot.edit_message(chat_id, msg_id,
+        f"✅ <b>{start}</b> → <b>{end}</b>", buttons=[])
 
 elif result["action"] == "nav":
-    new_buttons = bot.make_calendar(result["year"], result["month"])
-    # edit the message to show the new month …
+    bot.edit_message_keyboard(chat_id, msg_id,
+        bot.make_calendar(result["year"], result["month"],
+                          step=result["step"],
+                          picked_start=result["picked_start"]))
 
 else:
-    pass  # non-interactive tap — nothing to do
+    pass  # "ignore" — callback already acknowledged, nothing to do
 ```
 
 ---
@@ -267,7 +397,7 @@ else:
 ## Usage Example
 
 ```python
-from functions.telegram import TelegramBot
+from vdx_auto_utils import TelegramBot
 
 bot = TelegramBot(api_token="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
 GROUP_ID = "-1001234567890"
@@ -313,71 +443,106 @@ while True:
 
 ## Calendar Date Picker Example
 
-This example shows the full flow for a bot that lets a user pick a date from an interactive calendar.
+This example shows the full flow for a date range picker (start → end) that edits a single message in-place rather than sending new ones. The calendar is stateless — all context is baked into the button `callback_data`, so the bot survives restarts and concurrent users without any variables to track.
 
 ```python
 from vdx_auto_utils import TelegramBot
 from datetime import date
+import time
 
-bot = TelegramBot(api_token="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
-GROUP_ID = "-1001234567890"
+BOT_TOKEN = "YOUR_BOT_TOKEN"
+GROUP_ID  = "-1001234567890"
+TOPIC_ID  = 42  # omit if not using Forum Topics
 
-# --- Step 1: Send the calendar ---
-# Show the current month when the conversation starts.
+bot   = TelegramBot(api_token=BOT_TOKEN)
 today = date.today()
-bot.send_calendar(GROUP_ID, today.year, today.month, title="📅 Pick a report date:")
 
-# --- Step 2: Listen for the user's tap ---
+# ── Step 1: Send the initial calendar ────────────────────────────────────────
+resp   = bot.send_calendar(GROUP_ID, today.year, today.month,
+                           title="📅 <b>Set Date Range — Step 1 of 2</b>\nSelect the <b>start date</b>:",
+                           topic_id=TOPIC_ID, step="s")
+msg_id = resp["result"]["message_id"]
+
+# ── Polling loop ──────────────────────────────────────────────────────────────
 offset = None
 while True:
-    updates = bot.get_updates(offset=offset)
+    try:
+        updates = bot.get_updates(offset=offset, timeout=30)
+    except Exception as e:
+        print(f"⚠️  Polling error: {e}")
+        time.sleep(5)
+        continue
 
     for update in updates:
         offset = update["update_id"] + 1
+        try:
+            query = update.get("callback_query")
+            if not query:
+                continue
 
-        query = update.get("callback_query")
-        if not query:
-            continue
+            result     = bot.parse_calendar_callback(query["data"])
+            chat_id    = str(query["message"]["chat"]["id"])
+            message_id = query["message"]["message_id"]
 
-        # Always acknowledge the query first so Telegram removes the loading spinner.
-        bot.answer_callback_query(query["id"])
+            if result["action"] == "ignore":
+                bot.answer_callback_query(query["id"])
 
-        result = bot.parse_calendar_callback(query["data"])
+            elif result["action"] == "nav":
+                # User tapped ◀ or ▶ — swap only the keyboard grid
+                bot.answer_callback_query(query["id"])
+                bot.edit_message_keyboard(
+                    chat_id, message_id,
+                    bot.make_calendar(result["year"], result["month"],
+                                      step=result["step"],
+                                      picked_start=result["picked_start"]),
+                )
 
-        # --- User tapped a day ---
-        if result["action"] == "day":
-            selected_date = result["date"]   # e.g. "2026-04-15"
-            bot.send_message(
-                GROUP_ID,
-                f"✅ You selected: <b>{selected_date}</b>\nGenerating report…"
-            )
-            # Your logic here — pass selected_date to whatever needs it.
+            elif result["action"] == "day":
+                bot.answer_callback_query(query["id"])
 
-        # --- User tapped ◀ or ▶ to change month ---
-        elif result["action"] == "nav":
-            new_buttons = bot.make_calendar(result["year"], result["month"])
-            # Send a fresh calendar message for the new month.
-            # (To edit in-place instead, use the Telegram editMessageReplyMarkup endpoint.)
-            bot.send_message(GROUP_ID, "📅 Pick a report date:", buttons=new_buttons)
+                if result["step"] == "s":
+                    # Start date chosen — edit message to step 2
+                    start = result["date"]
+                    bot.edit_message(
+                        chat_id, message_id,
+                        f"📅 <b>Set Date Range — Step 2 of 2</b>\n"
+                        f"Start: <b>{start}</b>\nSelect the <b>end date</b>:",
+                        buttons=bot.make_calendar(int(start[:4]), int(start[5:7]),
+                                                  step="e", picked_start=start),
+                    )
 
-        # --- Non-interactive tap (header, blank cell, month label) ---
-        else:
-            pass  # Nothing to do — callback already acknowledged above.
+                elif result["step"] == "e":
+                    # Both dates confirmed — replace calendar with summary
+                    start = result["picked_start"]
+                    end   = result["date"]
+                    bot.edit_message(
+                        chat_id, message_id,
+                        f"✅ <b>Date range selected:</b>\n\n"
+                        f"Start: <b>{start}</b>\nEnd:   <b>{end}</b>",
+                        buttons=[],
+                    )
+                    print(f"Range confirmed: {start} → {end}")
+                    # ── Your logic here ──────────────────────────────────────
+
+        except Exception as e:
+            print(f"⚠️  Error on update {update.get('update_id')}: {e}")
 ```
 
 ### How the pieces fit together
 
 ```
-bot.send_calendar()
-    └─ calls make_calendar(year, month)    ← builds the keyboard layout
-    └─ calls send_message(buttons=...)     ← sends it to Telegram
+bot.send_calendar(step="s")
+    └─ calls make_calendar(year, month, step="s")   ← builds keyboard; state baked into each button
+    └─ calls send_message(buttons=...)              ← sends to Telegram
 
 User taps a button
     └─ Telegram sends a callback_query to your bot
 
-bot.answer_callback_query()               ← always call this first
-bot.parse_calendar_callback(query.data)
-    ├─ action == "day"   → result["date"] contains "YYYY-MM-DD"
-    ├─ action == "nav"   → call make_calendar(year, month) for the new month
-    └─ action == "ignore"→ do nothing
+bot.answer_callback_query()                         ← always call this first (10 s deadline)
+bot.parse_calendar_callback(query["data"])
+    ├─ action == "ignore" → do nothing
+    ├─ action == "nav"    → edit_message_keyboard() with make_calendar() for new month
+    └─ action == "day"
+           ├─ step == "s" → edit_message() with make_calendar(step="e", picked_start=date)
+           └─ step == "e" → edit_message(text=summary, buttons=[])  ← done!
 ```
