@@ -474,6 +474,62 @@ class TelegramBot:
 
         return {"action": "ignore"}
 
+    def pin_message(self, group_id: str, message_id: int,
+                    silent: bool = True) -> dict:
+        """
+        Pins a message in a group or channel.
+
+        Args:
+            group_id   (str): Chat ID of the group or channel.
+            message_id (int): ID of the message to pin.
+            silent     (bool): If ``True`` (default), pins without notifying members.
+
+        Returns:
+            dict: The Telegram API response, or ``None`` on failure.
+        """
+        endpoint = f"{self.base_url}/pinChatMessage"
+        payload  = {
+            "chat_id":              group_id,
+            "message_id":           message_id,
+            "disable_notification": silent,
+        }
+        try:
+            response = requests.post(endpoint, data=payload, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to pin message: {e}")
+            return None
+
+    def set_commands(self, commands: list) -> dict:
+        """
+        Registers bot commands so they appear in Telegram's ``/`` autocomplete menu.
+
+        Args:
+            commands (list): A list of dicts, each with ``"command"`` (without the
+                leading ``/``) and ``"description"`` keys.
+
+        Returns:
+            dict: The Telegram API response, or ``None`` on failure.
+
+        Example::
+
+            bot.set_commands([
+                {"command": "start",     "description": "Start the bot"},
+                {"command": "runreport", "description": "▶️ Run the bank sync report"},
+                {"command": "setdate",   "description": "📅 Set the date range"},
+                {"command": "status",    "description": "📊 Show current settings"},
+            ])
+        """
+        endpoint = f"{self.base_url}/setMyCommands"
+        try:
+            response = requests.post(endpoint, json={"commands": commands}, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to set commands: {e}")
+            return None
+
     def get_chat_admins(self, group_id: str) -> list:
         """
         Fetches the current list of administrator user IDs for a specific chat.
