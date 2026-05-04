@@ -76,8 +76,56 @@ print(f"Rows fetched: {len(rows)}")
 print(manager.get_status())
 ```
 
+## `get_status()` Return Value
+
+`get_status()` returns a dictionary with the following keys:
+
+| Key                     | Type        | Description                                         |
+|-------------------------|-------------|-----------------------------------------------------|
+| `current_account_index` | `int`       | Index of the account currently in use               |
+| `current_account_file`  | `str`       | File path of the currently active account           |
+| `total_accounts`        | `int`       | Total number of accounts managed                    |
+| `exhausted_accounts`    | `List[int]` | Indexes of accounts currently in cooldown           |
+| `available_accounts`    | `int`       | Number of accounts not in cooldown                  |
+| `cooldown_seconds`      | `int`       | Configured cooldown duration                        |
+| `last_errors`           | `Dict`      | Maps exhausted account indexes to their last error  |
+
+**Example output:**
+```python
+{
+    "current_account_index": 1,
+    "current_account_file": "C:\\creds\\acc_2.json",
+    "total_accounts": 3,
+    "exhausted_accounts": [0],
+    "available_accounts": 2,
+    "cooldown_seconds": 3600,
+    "last_errors": {0: "429 RESOURCE_EXHAUSTED: Quota exceeded..."}
+}
+```
+
+## Using `account_indices`
+
+Use `account_indices` to restrict the manager to a specific subset of the accounts list. This is useful when different scripts should share only certain accounts or when debugging with a single account.
+
+```python
+GOOGLE_SERVICE_ACCOUNTS = [
+    r"C:\creds\acc_1.json",  # index 0
+    r"C:\creds\acc_2.json",  # index 1
+    r"C:\creds\acc_3.json",  # index 2
+]
+
+# Only use acc_2.json and acc_3.json
+manager = ServiceAccountManager(
+    service_account_files=GOOGLE_SERVICE_ACCOUNTS,
+    account_indices=[1, 2],
+)
+```
+
+Indexes refer to positions in `service_account_files`. If an index is out of range it is silently skipped.
+
 ## Notes
 
 - Keep your real credential paths in project config files, not in this library.
 - This module only switches on quota-like errors (429/rate-limit/quota exceeded).
 - Non-quota errors are raised directly to the caller.
+- `reset_exhausted_accounts()` with no argument clears all cooldowns. Pass a specific index to reset just one account.
