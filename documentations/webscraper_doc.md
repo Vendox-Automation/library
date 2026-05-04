@@ -199,6 +199,68 @@ scraper.scan_and_close_popups(["close", "dismiss", "accept", "cookie"])
 
 ---
 
+#### `wait_for_url`
+```python
+def wait_for_url(self, url_fragment: str, timeout: int = 10) -> bool
+```
+Waits for the current URL to contain the given fragment. If `url_fragment` is empty or `None`, waits for the URL to change to anything different from the current one.
+
+- **Parameters:**
+  - `url_fragment` (str): Substring expected in the new URL. Pass an empty string or `None` to wait for any URL change.
+  - `timeout` (int): Max seconds to wait. Defaults to `10`.
+- **Returns:** `True` if the URL matched within the timeout, `False` otherwise.
+
+**Example:**
+```python
+scraper.find_and_click_btn("//button[@type='submit']")
+success = scraper.wait_for_url("/dashboard", timeout=15)
+if not success:
+    print("Login redirect did not occur.")
+```
+
+---
+
+#### `wait_for_element`
+```python
+def wait_for_element(self, xpath: str, timeout: int = 10) -> bool
+```
+Waits for an element to be present anywhere in the DOM (does not require it to be visible).
+
+- **Parameters:**
+  - `xpath` (str): XPath of the element to wait for.
+  - `timeout` (int): Max seconds to wait. Defaults to `10`.
+- **Returns:** `True` if the element appeared within the timeout, `False` otherwise.
+
+**Example:**
+```python
+scraper.find_and_click_btn("//button[@id='load-data']")
+ready = scraper.wait_for_element("//table[@id='results']", timeout=20)
+if ready:
+    rows = scraper.get_text("//table[@id='results']")
+```
+
+---
+
+#### `wait_for_element_hidden`
+```python
+def wait_for_element_hidden(self, xpath: str, timeout: int = 10) -> bool
+```
+Waits for an element to become invisible or be removed from the DOM. Useful for waiting on loaders, spinners, and modals to disappear before proceeding.
+
+- **Parameters:**
+  - `xpath` (str): XPath of the element to wait on.
+  - `timeout` (int): Max seconds to wait. Defaults to `10`.
+- **Returns:** `True` if the element disappeared within the timeout, `False` otherwise.
+
+**Example:**
+```python
+scraper.find_and_click_btn("//button[@id='submit']")
+scraper.wait_for_element_hidden("//div[@class='loading-spinner']", timeout=30)
+# Page is now ready to interact with
+```
+
+---
+
 #### `quit`
 ```python
 def quit(self)
