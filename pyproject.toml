@@ -25,6 +25,7 @@ dependencies = [
     "requests",
     "psycopg2",
     "pyotp",
+    "pytest",
 ]
 
 [tool.setuptools.packages.find]
