@@ -3,13 +3,10 @@ name: Publish
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
-      - "*.txt"
-
-# Only runs on push to main — NOT on pull requests.
-# A release is only created when code is actually merged.
+    # Only trigger when pyproject.toml changes — this only happens
+    # when the version bumper commits, not on regular code pushes
+    paths:
+      - "pyproject.toml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,9 +15,8 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # Only runs if the push was NOT from the version bumper bot.
-    # Without this, the version bump commit triggers a second release.
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    # Extra guard: only run on the version bump commit from the bot
+    if: "contains(github.event.head_commit.message, '[skip ci]')"
     permissions:
       contents: write
 
