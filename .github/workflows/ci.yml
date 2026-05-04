@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "*.txt"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ─────────────────────────────────────────
+  # JOB 1 — LINT
+  # ─────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install ruff black
+      - run: ruff check src/
+      - run: black --check --target-version py312 src/
+
+  # ─────────────────────────────────────────
+  # JOB 2 — TEST
+  # ─────────────────────────────────────────
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -v --tb=short
+
+  # ─────────────────────────────────────────
+  # JOB 3 — SECURITY
+  # ─────────────────────────────────────────
+  security:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: |
+          pip install --upgrade pip
+          pip install numpy pandas gspread google-api-python-client google-auth \
+            oauth2client selenium requests psycopg2-binary pyotp
+          pip install pip-audit bandit
+      - run: pip-audit --skip-editable
+      - run: bandit -r src/ -ll --skip B105,B106
+
+  # ─────────────────────────────────────────
+  # JOB 4 — BUILD
+  # ─────────────────────────────────────────
+  build:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install build
+      - run: python -m build --wheel
+      - name: Verify wheel was created
+        run: test $(ls dist/*.whl | wc -l) -eq 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vdx-auto-utils-wheel
+          path: dist/*.whl
+          retention-days: 7
+
+  # ─────────────────────────────────────────
+  # JOB 5 — VERSION BUMP + PUBLISH
+  # Only runs on push to main (not PRs), after build passes
+  # ─────────────────────────────────────────
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      !contains(github.event.head_commit.message, '[skip ci]')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Determine bump type
+        id: bump
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          PATTERN="^([a-zA-Z]+)\(([^)]+)\):"
+          if [[ "$COMMIT_MSG" =~ $PATTERN ]]; then
+            TYPE="${BASH_REMATCH[1]}"
+            SCOPE="${BASH_REMATCH[2]}"
+            if [[ "$TYPE" == "feat" && "$SCOPE" == "new-module" ]]; then
+              echo "type=minor" >> $GITHUB_OUTPUT
+            else
+              echo "type=patch" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump version in pyproject.toml
+        env:
+          BUMP_TYPE: ${{ steps.bump.outputs.type }}
+        run: |
+          python -c "
+          import re, sys, os
+          bump_type = os.environ['BUMP_TYPE']
+          with open('pyproject.toml', 'r') as f:
+              content = f.read()
+          match = re.search(r'version\s*=\s*\"(\d+)\.(\d+)\.(\d+)\"', content)
+          if not match:
+              sys.exit(1)
+          major, minor, patch = map(int, match.groups())
+          if bump_type == 'minor':
+              minor += 1
+              patch = 0
+          else:
+              patch += 1
+          new_version = f'{major}.{minor}.{patch}'
+          new_content = re.sub(r'version\s*=\s*\"\d+\.\d+\.\d+\"', f'version = \"{new_version}\"', content)
+          with open('pyproject.toml', 'w') as f:
+              f.write(new_content)
+          print(f'Bumped to {new_version}')
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'NEW_VERSION={new_version}\n')
+          "
+
+      - name: Commit bumped version
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore(version): bump version to ${{ env.NEW_VERSION }} [skip ci]"
+            git push
+          fi
+
+      - name: Build wheel for release
+        run: |
+          pip install build
+          python -m build --wheel
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh release create "v${{ env.NEW_VERSION }}" \
+            dist/*.whl \
+            --title "v${{ env.NEW_VERSION }}" \
+            --generate-notes \
+            --latest
