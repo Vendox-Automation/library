@@ -1,0 +1,38 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "*.txt"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package and security tools
+        run: |
+          pip install -e .
+          pip install pip-audit bandit
+
+      - name: pip-audit — check dependencies for known CVEs
+        run: pip-audit
+
+      - name: bandit — scan source code for security issues
+        run: bandit -r src/ -ll --skip B105,B106
