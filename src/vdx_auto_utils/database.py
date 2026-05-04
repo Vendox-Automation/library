@@ -8,16 +8,16 @@ import pandas as pd
 class Database:
     """
     A database connection manager for PostgreSQL-based databases.
-    
+
     Supports connection management, table operations, and data manipulation
     with context manager support for automatic resource cleanup.
     """
-    
-    def __init__(self, database_type: str, user: str = None, password: str = None, 
+
+    def __init__(self, database_type: str, user: str = None, password: str = None,
                  host: str = None, port: str = None, dbname: str = None):
         """
         Initialize a Database instance.
-        
+
         Args:
             database_type (str): Type of database to connect to (currently supports "supabase")
             user (str, optional): Database user name
@@ -54,10 +54,10 @@ class Database:
     def connect(self):
         """
         Establish a connection to the database.
-        
+
         Returns:
             psycopg2.connection: Active database connection object
-            
+
         Raises:
             ValueError: If database_type is not supported
             Exception: If connection fails
@@ -82,10 +82,10 @@ class Database:
     def create_table(self, query: str):
         """
         Create a table in the database using the provided SQL query.
-        
+
         Args:
             query (str): SQL CREATE TABLE query
-            
+
         Raises:
             ConnectionError: If database is not connected
             ValueError: If database_type is not supported
@@ -113,14 +113,14 @@ class Database:
     def write_row(self, insert_query: str, values: tuple):
         """
         Insert a row into a table using parameterized query.
-        
+
         Args:
             insert_query (str): SQL INSERT query with placeholders (e.g., "INSERT INTO table VALUES (%s, %s)")
             values (tuple): Tuple of values to insert
-            
+
         Returns:
             bool: True if insertion successful, False otherwise
-            
+
         Raises:
             ConnectionError: If database is not connected
             ValueError: If database_type is not supported
@@ -181,13 +181,13 @@ class Database:
     def read_table(self, query: str):
         """
         Execute a SELECT query and return results as a pandas DataFrame.
-        
+
         Args:
             query (str): SQL SELECT query
-            
+
         Returns:
             pd.DataFrame: Query results as DataFrame, or None if query fails
-            
+
         Raises:
             ConnectionError: If database is not connected
             ValueError: If database_type is not supported
@@ -222,7 +222,7 @@ class Database:
     def __enter__(self):
         """
         Context manager entry point. Establishes database connection.
-        
+
         Returns:
             Database: Self instance with active connection
         """
@@ -232,7 +232,7 @@ class Database:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Context manager exit point. Closes database connection.
-        
+
         Args:
             exc_type: Exception type if an exception occurred
             exc_val: Exception value if an exception occurred

@@ -23,7 +23,7 @@ class TelegramBot:
         self.api_token = api_token
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
 
-    def send_message(self, group_id: str, message: str, topic_id: int = None, 
+    def send_message(self, group_id: str, message: str, topic_id: int = None,
                      buttons: list = None, reply_to_message_id: int = None, disable_web_page_preview: bool = False):
         """
         Sends a text message with optional interactive buttons.
@@ -36,7 +36,7 @@ class TelegramBot:
             disable_web_page_preview (bool, optional): If set to True, it will disable preview links. Defaults to False
         """
         endpoint = f"{self.base_url}/sendMessage"
-        
+
         payload = {
             "chat_id": group_id,
             "text": message,
@@ -100,7 +100,7 @@ class TelegramBot:
             file_key = "document"
 
         endpoint = f"{self.base_url}/{method}"
-        
+
         payload = {"chat_id": group_id}
         if caption:
             payload["caption"] = caption
@@ -112,14 +112,14 @@ class TelegramBot:
                 files = {file_key: f}
                 response = requests.post(endpoint, data=payload, files=files, timeout=60)
                 response.raise_for_status()
-                
+
             logger.info(f"File '{os.path.basename(file_path)}' sent via {method}")
             return response.json()
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to send file: {e}")
             return None
-    
+
     def get_updates(self, offset=None, timeout=30):
         """
         Polls the Telegram API for new updates (messages, button clicks).
@@ -136,7 +136,7 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Error fetching updates: {e}")
             return []
-    
+
     def answer_callback_query(self, callback_query_id: str, text: str = None, show_alert: bool = False):
         """
         Acknowledges a callback query and optionally shows a popup alert.
@@ -148,14 +148,14 @@ class TelegramBot:
         """
         endpoint = f"{self.base_url}/answerCallbackQuery"
         payload = {"callback_query_id": callback_query_id}
-        
+
         if text:
             payload["text"] = text
             payload["show_alert"] = show_alert
 
         try:
             requests.post(endpoint, data=payload, timeout=10)
-        except Exception as e:  
+        except Exception as e:
             logger.error(f"Error answering callback query: {e}")
 
     def send_calendar(self, group_id: str, year: int, month: int,
@@ -544,7 +544,7 @@ class TelegramBot:
             response = requests.post(endpoint, data=payload, timeout=10)
             response.raise_for_status()
             data = response.json()
-            
+
             if data.get("ok"):
                 # Extract and return just the numeric user IDs of the admins
                 admin_ids = [admin["user"]["id"] for admin in data["result"]]
@@ -552,7 +552,7 @@ class TelegramBot:
             else:
                 logger.error(f"Telegram API Error: {data.get('description')}")
                 return []
-                
+
         except Exception as e:
             logger.error(f"Error fetching admins: {e}")
             return []

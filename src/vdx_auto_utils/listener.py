@@ -18,10 +18,10 @@ class GoogleSheetsListener:
         'https://www.googleapis.com/auth/drive'
     ]
 
-    def __init__(self, 
-                 credentials_file: str, 
-                 spreadsheet_id: str, 
-                 worksheet_name: str, 
+    def __init__(self,
+                 credentials_file: str,
+                 spreadsheet_id: str,
+                 worksheet_name: str,
                  header_map: Dict[str, str],
                  check_interval: int = 10):
         self.spreadsheet_id = spreadsheet_id
@@ -29,11 +29,11 @@ class GoogleSheetsListener:
         self.header_map = header_map
         self.check_interval = check_interval
         self._is_listening = False
-        
+
         # Internal Authentication
         self.creds = Credentials.from_service_account_file(credentials_file, scopes=self.SCOPES)
         self.client = gspread.authorize(self.creds)
-        
+
         socket.setdefaulttimeout(120)
 
     def _get_worksheet(self):
@@ -91,9 +91,9 @@ class GoogleSheetsListener:
                         # Package data
                         data_package = {key: row[idx] for key, idx in indices.items()}
                         data_package['row_index'] = i
-                        
+
                         # Execute your custom logic
-                        # You are now responsible for updating the 'status' column 
+                        # You are now responsible for updating the 'status' column
                         # inside this function to prevent the loop from re-triggering.
                         callback_func(data_package)
 

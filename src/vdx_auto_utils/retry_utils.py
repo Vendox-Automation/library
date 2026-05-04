@@ -9,7 +9,7 @@ def with_retry(max_attempts=5, delay_seconds=3):
         Args:
         max_attempts (int): Maximum number of retry attempts.
         delay_seconds (int): Initial delay between attempts in seconds.
-    
+
         Returns:
         Decorated function with retry logic.
     """

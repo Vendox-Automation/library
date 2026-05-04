@@ -36,7 +36,7 @@ class Logger:
 
         # Setting the threshold of logger to DEBUG
         self.logger.setLevel(logging.DEBUG)
-        
+
     def get_logger(self):
         """Return the configured ``logging.Logger``."""
         return self.logger

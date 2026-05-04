@@ -9,7 +9,7 @@ class DriveManager:
     A reusable module for interacting with the Google Drive API.
     Handles authentication, navigation, file discovery, and reading.
     """
-    
+
     def __init__(self, service_account_file: str, scopes: List[str] = None):
         """
         Initializes the DriveManager with service account credentials.
@@ -23,7 +23,7 @@ class DriveManager:
                 'https://www.googleapis.com/auth/drive',
                 'https://www.googleapis.com/auth/spreadsheets.readonly'
             ]
-            
+
         self.creds = service_account.Credentials.from_service_account_file(
             service_account_file, scopes=scopes)
 
@@ -41,7 +41,7 @@ class DriveManager:
             A list of file metadata dictionaries matching the query.
         """
         response = self.service.files().list(
-            q=query, spaces='drive', supportsAllDrives=True, 
+            q=query, spaces='drive', supportsAllDrives=True,
             includeItemsFromAllDrives=True, fields='files(id, name)').execute()
         return response.get('files', [])
 
@@ -58,7 +58,7 @@ class DriveManager:
         """
         query = (f"name = '{target_name}' and '{parent_id}' in parents and "
                  f"mimeType = 'application/vnd.google-apps.folder' and trashed = false")
-        response = self.service.files().list(q=query, spaces='drive', supportsAllDrives=True, 
+        response = self.service.files().list(q=query, spaces='drive', supportsAllDrives=True,
                                        includeItemsFromAllDrives=True, fields='files(id, name)').execute()
         files = response.get('files', [])
         return files[0]['id'] if files else None
@@ -91,7 +91,7 @@ class DriveManager:
             file_id: The ID of the file to copy.
             new_name: The name for the copied file.
             parent_id: The ID of the destination folder.
-        
+
         Returns:
             The metadata of the copied file.
         """
@@ -102,18 +102,18 @@ class DriveManager:
     def find_files_by_keywords(self, folder_id: str, keyword_map: Dict[str, str]) -> Dict[str, Optional[str]]:
         """
         Maps files in a folder to keys based on keyword matching in filenames.
-        
+
         Args:
             folder_id: The ID of the folder to search within.
             keyword_map: A dictionary mapping keys to filename keywords.
-        
+
         Returns:
             A dictionary mapping each key to the corresponding file ID or None if not found.
         """
         query = f"'{folder_id}' in parents and trashed = false"
-        items = self.service.files().list(q=query, spaces='drive', supportsAllDrives=True, 
+        items = self.service.files().list(q=query, spaces='drive', supportsAllDrives=True,
                                     includeItemsFromAllDrives=True, fields='files(id, name)').execute().get('files', [])
-        
+
         results = {key: None for key in keyword_map.keys()}
         sorted_keywords = sorted(keyword_map.items(), key=lambda x: len(x[1]), reverse=True)
         assigned_file_ids = set()
@@ -123,7 +123,7 @@ class DriveManager:
                 if item['id'] not in assigned_file_ids and pattern in item['name']:
                     results[key] = item['id']
                     assigned_file_ids.add(item['id'])
-                    break 
+                    break
         return results
 
     def read_csv_from_drive(self, file_id: str) -> Optional[pd.DataFrame]:
@@ -132,11 +132,13 @@ class DriveManager:
 
         Args:
             file_id: The file Id to read from
-        
+
         Returns:
             A Pandas DataFrame containing the CSV data, or None if file_id is invalid.
         """
-        if not file_id: return None
+        if not file_id:
+            return None
+
         request = self.service.files().get_media(fileId=file_id)
         return pd.read_csv(io.BytesIO(request.execute()), low_memory=False)
 
@@ -150,7 +152,8 @@ class DriveManager:
         Returns:
             A Pandas DataFrame containing the Sheet data, or None if failed.
         """
-        if not file_id: return None
+        if not file_id:
+            return None
         try:
             # 1. If no sheet_name is provided, grab the metadata to find the first tab's name
             if not sheet_name:
@@ -163,7 +166,7 @@ class DriveManager:
             # 2. Fetch the raw values for the target sheet
             result = self.sheets_service.spreadsheets().values().get(
                 spreadsheetId=file_id, range=sheet_name).execute()
-            
+
             values = result.get('values', [])
 
             if not values:
@@ -172,14 +175,14 @@ class DriveManager:
 
             # 3. Convert to a Pandas DataFrame safely
             df = pd.DataFrame(values)
-            
+
             # Promote the first row to be the column headers
             if not df.empty:
                 df.columns = df.iloc[0]
                 df = df[1:].reset_index(drop=True)
-                
+
             return df
-            
+
         except Exception as e:
             print(f"❌ Failed to read via Sheets API: {e}")
             return None

@@ -37,7 +37,7 @@ class CSVFilter:
             raise TypeError("Input must be either a file path (string) or a Pandas DataFrame.")
 
         self.initial_rows = len(self.df)
-            
+
     def _apply_renames(self, rename_map: Dict[str, str]):
         """
         Helper for column renaming.
@@ -46,7 +46,7 @@ class CSVFilter:
         """
         print(f"-> Applying Column Renames: {rename_map}")
         self.df.rename(columns=rename_map, inplace=True)
-        
+
     def _drop_columns(self, columns_to_remove: List[str]):
         """
         Helper for column removal.
@@ -55,10 +55,10 @@ class CSVFilter:
         """
         valid_cols = [col for col in columns_to_remove if col in self.df.columns]
         invalid_cols = [col for col in columns_to_remove if col not in self.df.columns]
-        
+
         if invalid_cols:
             print(f"-> Warning: Columns not found and skipped during removal: {invalid_cols}")
-        
+
         if valid_cols:
             print(f"-> Removing Columns: {valid_cols}")
             self.df.drop(columns=valid_cols, inplace=True)
@@ -72,10 +72,10 @@ class CSVFilter:
         """
         print(f"-> Removing Rows by Value/List: {rows_to_remove_by_value}")
         initial_count = len(self.df)
-        
+
         # Initialize a mask where no rows are marked for removal yet
         mask = pd.Series([False] * len(self.df))
-        
+
         for column, values_to_remove in rows_to_remove_by_value.items():
             if column not in self.df.columns:
                 print(f"-> Warning: Removal column '{column}' not found.")
@@ -84,24 +84,24 @@ class CSVFilter:
             # Convert single value into a list for consistent processing
             if not isinstance(values_to_remove, list):
                 values_to_remove = [values_to_remove]
-            
+
             # Temporary mask for the current column's criteria
             column_mask = pd.Series([False] * len(self.df), index=self.df.index)
-            
+
             # Iterate through each specific value or the special None case
             for value in values_to_remove:
-                
+
                 # None for matching all blanks (NaN/empty strings)
                 if value is None:
                     # Clean the series: strip whitespace and replace empty strings with NaN
                     series = self.df[column]
                     if series.dtype == object:
                         series = series.str.strip().replace('', np.nan)
-                    
+
                     # Rows where the value is NaN/Null are marked True (for removal)
-                    blank_mask = series.isna() 
+                    blank_mask = series.isna()
                     column_mask |= blank_mask
-                    
+
                 # Exact value match
                 else:
                     exact_match_mask = (self.df[column] == value)
@@ -109,21 +109,21 @@ class CSVFilter:
 
             # Use OR (|) logic to combine the current column's removals with the overall mask
             mask |= column_mask
-        
+
         # Apply the inverse mask: Keep rows where the mask is False (i.e., NOT the ones we want to remove)
         self.df = self.df[~mask]
-        
+
         # Reset the index after dropping rows (critical for preventing Unalignable Series error)
         self.df.reset_index(drop=True, inplace=True)
-        
+
         print(f"-> Rows removed (by value/list): {initial_count - len(self.df)}")
 
     def _apply_filtering_criteria(self, filter_criteria: Dict[str, Any]):
         """
         Helper for complex row filtering (IN, CONTAINS, >, <, etc.).
-        
+
         If a column has a single criterion, it's applied directly.
-        If a column has a list of criteria (e.g., ['CONTAINS: @gmail', '>100']), 
+        If a column has a list of criteria (e.g., ['CONTAINS: @gmail', '>100']),
         it applies OR logic within that column's mask.
         All column masks are combined using AND logic.
 
@@ -133,19 +133,19 @@ class CSVFilter:
         """
         print(f"-> Applying Complex Filtering Criteria: {filter_criteria}")
         initial_count = len(self.df)
-        
+
         # Initialize the master mask to True, aligned to the current DataFrame index.
         combined_mask = pd.Series(True, index=self.df.index)
-        
+
         # Iterate through each column criterion (Inter-column AND logic)
         for column, criterion in filter_criteria.items():
             if column not in self.df.columns:
                 print(f"-> Warning: Filter column '{column}' not found. Skipping filter.")
                 continue
-            
+
             # Prepare for Intra-column OR logic.
             criteria_list = criterion if isinstance(criterion, list) else [criterion]
-            
+
             # Initialize the mask for this specific column to False (no rows match yet)
             column_mask = pd.Series(False, index=self.df.index)
 
@@ -159,18 +159,18 @@ class CSVFilter:
                     series = self.df[column].astype(str)
                     # na=False ensures null/NaN values are not included in the match
                     temp_mask = series.str.contains(search_string, case=False, na=False)
-                
+
                 # Handling EXACT operator
                 elif isinstance(single_criterion, str) and single_criterion.upper().startswith('EXACT:'):
                     exact_value = single_criterion[len('EXACT:'):].strip()
                     # We compare against the string version of the column
                     temp_mask = (self.df[column].astype(str) == exact_value)
-                    
+
                 # Handling comparison operators (>, <, etc.)
                 elif isinstance(single_criterion, str) and any(op in single_criterion for op in ['>', '<', '>=', '<=']):
                     op = single_criterion[0:2] if single_criterion[1] == '=' else single_criterion[0]
                     value = single_criterion[len(op):].strip()
-                    
+
                     # Convert column to numeric, coercing non-numeric values to NaN
                     series = pd.to_numeric(self.df[column], errors='coerce')
 
@@ -193,20 +193,20 @@ class CSVFilter:
                 # Handling exact string/value match
                 else:
                     temp_mask = (self.df[column] == single_criterion)
-                    
+
                 # Use OR (|) to combine masks for the same column
                 if temp_mask is not None:
                     column_mask |= temp_mask
 
             # Use AND (&) to combine the column's mask with the overall master mask
-            combined_mask &= column_mask 
+            combined_mask &= column_mask
 
         # Apply the combined filter: keep only rows where the mask is True
         self.df = self.df[combined_mask].copy()
-        
+
         print(f"-> Rows removed (by criteria): {initial_count - len(self.df)}")
         return self.df
-        
+
     def _handle_missing_values(self, fill_na_value: Any):
         """
         Helper for filling NaN/Null values.
@@ -219,7 +219,7 @@ class CSVFilter:
 
     def _apply_multiplier_math(self, math_rules: List[Dict[str, Any]]):
         """
-        Applies conditional arithmetic. 
+        Applies conditional arithmetic.
         Example Rule: {'target': 'charge', 'source': 'amount', 'multiplier': 0.1, 'trigger_values': [0, None, '']}
         Meaning: If 'charge' is 0 or Empty, set 'charge' = 'amount' * 0.1
         Args:
@@ -240,14 +240,14 @@ class CSVFilter:
             if target not in self.df.columns:
                 print(f"   -> Creating new target column: '{target}'")
                 self.df[target] = 0.0
-            
+
             # 1. Clean data to ensure we can do math
             self.df[target] = pd.to_numeric(self.df[target], errors='coerce')
             self.df[source] = pd.to_numeric(self.df[source], errors='coerce')
 
-            # 2. Build the Mask 
+            # 2. Build the Mask
             if triggers == '*' or (isinstance(triggers, list) and '*' in triggers):
-                print(f"   ⚡ Wildcard detected. Applying to ALL rows.")
+                print("   ⚡ Wildcard detected. Applying to ALL rows.")
                 mask = pd.Series(True, index=self.df.index)
             else:
                 # Standard conditional logic
@@ -262,14 +262,14 @@ class CSVFilter:
             rows_affected = mask.sum()
             if rows_affected > 0:
                 self.df.loc[mask, target] = self.df.loc[mask, source] * multiplier
-                print(f"   -> Updated {rows_affected} rows in '{target}' using '{source}' * {multiplier}") 
-    
+                print(f"   -> Updated {rows_affected} rows in '{target}' using '{source}' * {multiplier}")
+
     def _split_column(self, split_rules: Union[Dict[str, Any], List[Dict[str, Any]]]):
         """
         Helper for splitting a column into two new columns. Now supports multiple splits.
         Expects: {
-            'target': 'original_col', 
-            'delimiter': '-', 
+            'target': 'original_col',
+            'delimiter': '-',
             'new_headers': ['Col1', 'Col2']
         }
         Args:
@@ -305,8 +305,8 @@ class CSVFilter:
                 self.df.loc[:, new_headers[1]] = split_data[1]
             else:
                 self.df.loc[:, new_headers[1]] = "" # Fill with empty string if no split occurred
-            
-            # Remove original column 
+
+            # Remove original column
             self.df.drop(columns=[target], inplace=True)
 
         except Exception as e:
@@ -326,7 +326,7 @@ class CSVFilter:
             print(f"⚠️ Warning: Could not drop rows {indices}: {e}")
 
     # PRIMARY EXECUTION METHOD
-    def apply_filters(self, 
+    def apply_filters(self,
                       filter_rules: Dict[str, Any],
                       execution_order: List[str]) -> pd.DataFrame:
         """
@@ -340,7 +340,7 @@ class CSVFilter:
         Returns:
             The cleaned and filtered Pandas DataFrame.
         """
-        
+
         # Define the map between the user-defined string keys and the internal methods/parameters
         OPERATION_MAP = {
             'rename': (self._apply_renames, 'rename_columns'),
@@ -374,8 +374,8 @@ class CSVFilter:
             else:
                 print(f"-> Skipping '{step_name}': No rules provided.")
 
-        
+
         final_rows = len(self.df)
         print(f"\nFiltering sequence complete. Final row count: {final_rows}")
-        
+
         return self.df

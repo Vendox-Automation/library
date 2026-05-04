@@ -13,7 +13,7 @@ class Scraper:
     def __init__(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
-        
+
         Args:
             headless (bool): If True, runs the browser without a GUI. Defaults to True.
             allow_media_perms (bool): If True, enables media permissions in the browser for webcam purposes.
@@ -25,10 +25,10 @@ class Scraper:
     def setup_driver(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
         """
         Configures Chrome options for anti-detection and stability.
-        
+
         Args:
             headless (bool): Whether to run in headless mode.
-            disable_noti (bool): Whether to enable notifications. 
+            disable_noti (bool): Whether to enable notifications.
             allow_media_perms (bool): Whether to allow media permissions for the browser.
             window_size (tuple): Sets window size according to given parameters.
         Returns:
@@ -36,18 +36,18 @@ class Scraper:
         """
         opts = Options()
         if headless:
-            opts.add_argument("--headless=new") 
-        
+            opts.add_argument("--headless=new")
+
         if disable_noti:
             opts.add_argument("--disable-infobars")
             opts.add_argument("--disable-notifications")
             opts.add_argument("--ignore-certificate-errors")
-        
+
         opts.add_argument("--guest")
         opts.add_argument("--disable-blink-features=AutomationControlled")
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
-        
+
         opts.add_argument("--disable-gpu")
         opts.add_argument("--no-sandbox")
         opts.add_argument("--disable-dev-shm-usage")
@@ -86,7 +86,7 @@ class Scraper:
     def find_input(self, xpath: str, timeout=10):
         """
         Waits for an input field to appear and returns it.
-        
+
         Args:
             xpath (str): The XPath of the element.
             timeout (int): Seconds to wait. Defaults to 10.
@@ -104,7 +104,7 @@ class Scraper:
     def fill_input(self, element, value, use_js=False):
         """
         Clears and fills an input field with Selenium or JS injection.
-        
+
         Args:
             element (WebElement): The Selenium element to fill.
             value (str): The text to enter.
@@ -127,7 +127,7 @@ class Scraper:
     def get_text(self, xpath: str, timeout=10):
         """
         Waits for an element and returns its text.
-        
+
         Args:
             xpath (str): The XPath of the element.
             timeout (int): Seconds to wait. Defaults to 10.
@@ -146,7 +146,7 @@ class Scraper:
     def select_option(self, xpath: str, option_text):
         """
         Selects an option from a dropdown by visible text.
-        
+
         Args:
             xpath (str): The XPath of the select element.
             option_text (str): The visible text of the option to select.
@@ -164,7 +164,7 @@ class Scraper:
     def find_btn(self, xpath: str, timeout=10):
         """
         Waits for a button to be clickable and returns it.
-        
+
         Args:
             xpath (str): The XPath of the button.
             timeout (int): Seconds to wait. Defaults to 10.
@@ -214,7 +214,7 @@ class Scraper:
     def find_and_click_btn(self, xpath: str, timeout=10, use_js=False):
         """
         Helper to find and click in one step.
-        
+
         Args:
             xpath (str): The XPath to find.
             timeout (int): Seconds to wait.
@@ -277,12 +277,12 @@ class Scraper:
         except Exception as e:
             logger.error(f"scan_and_close_popups JS execution failed: {e}")
             return 0
-    
+
     def wait_for_url(self, url_fragment: str, timeout: int = 10) -> bool:
         """
         Waits for the URL to change to one containing the given fragment.
         If no fragment is provided, waits for the URL to change to any other URL.
-        
+
         Args:
             url_fragment (str) optional: The URL fragment to wait for.
             timeout (int): Seconds to wait. Defaults to 10.
@@ -305,7 +305,7 @@ class Scraper:
     def wait_for_element(self, xpath: str, timeout: int = 10):
         """
         Waits for an element to be present in the DOM.
-        
+
         Args:
             xpath (str): The XPath of the element to wait for.
             timeout (int): Seconds to wait. Defaults to 10.
@@ -324,7 +324,7 @@ class Scraper:
     def wait_for_element_hidden(self, xpath: str, timeout: int = 10) -> bool:
         """
         Waits for an element to be hidden from the DOM.
-        
+
         Args:
             xpath (str): The XPath of the element to wait for.
             timeout (int): Seconds to wait. Defaults to 10.
