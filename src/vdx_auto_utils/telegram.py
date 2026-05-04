@@ -131,7 +131,7 @@ class TelegramBot:
         endpoint = f"{self.base_url}/getUpdates"
         params = {"timeout": timeout, "offset": offset}
         try:
-            response = requests.get(endpoint, params=params, timeout=timeout + 5)
+            response = requests.get(endpoint, params=params, timeout=timeout + 5) # nosec B113
             return response.json().get("result", [])
         except Exception as e:
             logger.error(f"Error fetching updates: {e}")
