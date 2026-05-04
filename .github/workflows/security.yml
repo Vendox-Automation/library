@@ -28,6 +28,7 @@ jobs:
 
       - name: Install dependencies and security tools
         run: |
+          pip install --upgrade pip
           pip install -r requirements.txt 2>/dev/null || pip install \
             numpy pandas gspread google-api-python-client google-auth \
             oauth2client selenium requests psycopg2-binary pyotp
