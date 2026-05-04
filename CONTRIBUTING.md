@@ -1,24 +1,47 @@
-## Contributing
+# Contributing to vdx_auto_utils
 
-To contribute to this library, please follow these steps to maintain consistency and ensure your new features are accessible:
+## The one rule
 
-### 1. Create a New Module
-* Create a new `.py` file for your logic (e.g., `new_feature.py`).
-* Encapsulate your logic within a **class**.
-* Define a clear `__init__` function to handle setup/credentials.
-* Write **inner functions** (methods) using descriptive names and consistent error handling (use the `logger`).
+**Never push directly to `main`.** All changes must come through a pull request.
 
-### 2. Export via `__init__.py`
-* Open `src/vdx_auto_utils/__init__.py`.
-* Import your new class: `from .new_feature import NewFeature`.
-* Add the class name to the `__all__` list so it can be imported directly from the package.
+This applies to everyone on the team, including the repo owner. Even a one-line fix.
 
-### 3. Update Configuration
-* **Dependencies**: If your code requires new external libraries (like `selenium` or `requests`), add them to the `dependencies` list in `pyproject.toml`.
-* **Version Number**: Increment the `version` string in `pyproject.toml` (e.g., from `0.1.0` to `0.1.1`) to reflect the update.
+## Workflow
 
-### 4. Style & Documentation
-* Follow the existing style, such as using `WebDriverWait` for Selenium or `try-except` blocks with `traceback`.
-* Include docstrings for your class and all public methods, detailing the **Args** and the purpose of the code.
+1. Create a branch from `main`
+   ```
+   git checkout -b fix(database): handle connection timeout
+   ```
 
-Please ensure your code follows the existing style and includes appropriate documentation.
+2. Make your changes, commit using the standard format:
+   ```
+   type(module): short description
+   ```
+   Valid types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`
+
+   Examples:
+   - `feat(new-module): add SharePoint uploader`  ← bumps MINOR version
+   - `fix(database): handle reconnect on timeout`  ← bumps PATCH version
+   - `refactor(webscraper): simplify click fallback logic`  ← bumps PATCH version
+
+3. Open a PR targeting `main`
+   - CI will run automatically (lint, tests, security, build)
+   - At least one teammate should review before merging
+   - Don't merge a red PR
+
+4. After merging, the version bumper and Notion/Jira logger run automatically
+
+## Why the commit format matters
+
+Your `version-bumper.yml` and `notionjira-commit-log.yml` workflows both
+parse commit messages in the `type(module): description` format.
+
+A commit that doesn't follow this format will:
+- Default to a patch version bump
+- Be skipped in the Notion/Jira log
+
+## Installing the latest version
+
+```bash
+pip install git+https://github.com/Vendox-Automation/library
+```

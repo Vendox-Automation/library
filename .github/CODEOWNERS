@@ -1,0 +1,5 @@
+# Every PR automatically requests a review from at least one of these people.
+# GitHub will assign reviewers based on what files were changed.
+
+# Default: any change in the repo requires review from one of the core team
+* @Pottah-Brrrr
