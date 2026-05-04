@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
@@ -437,7 +437,7 @@ def resolve_report_dates(date_config: Optional[Dict[str, Any]]) -> Tuple[str, st
         start_dt = datetime.strptime(start_raw, "%Y-%m-%d").date()
         end_dt = datetime.strptime(end_raw, "%Y-%m-%d").date()
     else:
-        yday = (datetime.now(UTC) - timedelta(days=1)).date()
+        yday = (datetime.now(timezone.utc) - timedelta(days=1)).date()
         start_dt = yday
         end_dt = yday
     return start_dt.strftime(report_date_format), end_dt.strftime(report_date_format)
