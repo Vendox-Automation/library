@@ -26,13 +26,15 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install package and security tools
+      - name: Install dependencies and security tools
         run: |
-          pip install -e .
+          pip install -r requirements.txt 2>/dev/null || pip install \
+            numpy pandas gspread google-api-python-client google-auth \
+            oauth2client selenium requests psycopg2-binary pyotp
           pip install pip-audit bandit
 
       - name: pip-audit — check dependencies for known CVEs
-        run: pip-audit
+        run: pip-audit --skip-editable
 
       - name: bandit — scan source code for security issues
         run: bandit -r src/ -ll --skip B105,B106
