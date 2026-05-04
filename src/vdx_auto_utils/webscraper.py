@@ -69,7 +69,7 @@ class Scraper:
             opts.add_argument("--disable-infobars")
             opts.add_argument("--disable-notifications")
             opts.add_argument("--ignore-certificate-errors")
-        
+
         if use_profile:
             profile_path = Path.cwd() / "chrome_profile"
             profile_path.mkdir(parents=True, exist_ok=True)
