@@ -1,5 +1,6 @@
 import logging
 import time
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -17,6 +18,7 @@ class Scraper:
         allow_media_perms=False,
         disable_noti=False,
         window_size: tuple = (1920, 1080),
+        use_profile=False,
     ):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
@@ -26,12 +28,15 @@ class Scraper:
             allow_media_perms (bool): If True, enables media permissions in the browser for webcam purposes.
             disable_noti (bool): If True, will disable all notifications.
             window_size (tuple): Takes a tuple of (width, height) to set the browser window size. Defaults to (1920, 1080).
+            use_profile (bool): If True, persists the Chrome session to disk (chrome_profile/ folder) so you
+                                stay logged in between runs. If False, uses guest mode. Defaults to False.
         """
         self.driver = self.setup_driver(
             headless=headless,
             allow_media_perms=allow_media_perms,
             disable_noti=disable_noti,
             window_size=window_size,
+            use_profile=use_profile,
         )
 
     def setup_driver(
@@ -40,6 +45,7 @@ class Scraper:
         allow_media_perms=False,
         disable_noti=False,
         window_size: tuple = (1920, 1080),
+        use_profile=False,
     ):
         """
         Configures Chrome options for anti-detection and stability.
@@ -49,6 +55,9 @@ class Scraper:
             disable_noti (bool): Whether to enable notifications.
             allow_media_perms (bool): Whether to allow media permissions for the browser.
             window_size (tuple): Sets window size according to given parameters.
+            use_profile (bool): Whether to persist the Chrome session to disk.
+                                - True  -> saves cookies/login state to chrome_profile/ (stays logged in).
+                                - False -> uses --guest mode (fresh session every run, nothing saved).
         Returns:
             webdriver.Chrome: The initialized driver instance.
         """
@@ -60,8 +69,21 @@ class Scraper:
             opts.add_argument("--disable-infobars")
             opts.add_argument("--disable-notifications")
             opts.add_argument("--ignore-certificate-errors")
+        
+        if use_profile:
+            profile_path = Path.cwd() / "chrome_profile"
+            profile_path.mkdir(parents=True, exist_ok=True)
+            opts.add_argument(f"--user-data-dir={profile_path}")
+            logger.info(f"Chrome profile loaded from: {profile_path}")
+            if headless:
+                logger.warning(
+                    "use_profile=True with headless=True: cookies may not restore on the "
+                    "very first run. If login fails, run once with headless=False to seed "
+                    "the profile, then switch back to headless."
+                )
+        else:
+            opts.add_argument("--guest")
 
-        opts.add_argument("--guest")
         opts.add_argument("--disable-blink-features=AutomationControlled")
         opts.add_experimental_option("excludeSwitches", ["enable-automation"])
         opts.add_experimental_option("useAutomationExtension", False)
@@ -85,6 +107,10 @@ class Scraper:
         driver = webdriver.Chrome(options=opts)
         driver.set_window_size(*window_size)
         driver.implicitly_wait(2)
+
+        # Hides navigator.webdriver so sites can't detect Selenium via JS checks
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
         return driver
 
     # Helper methods (JS)
