@@ -1,7 +1,8 @@
 import pytest
 import time
 from unittest.mock import MagicMock, patch
-from src.vdx_auto_utils.service_account_manager import ServiceAccountManager
+from vdx_auto_utils.service_account_manager import ServiceAccountManager
+
 
 class TestServiceAccountManager:
 

@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from src.vdx_auto_utils.database import Database
+from vdx_auto_utils.database import Database
+
 
 class TestDatabase:
 

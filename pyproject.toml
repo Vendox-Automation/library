@@ -25,8 +25,19 @@ dependencies = [
     "requests",
     "psycopg2",
     "pyotp",
-    "pytest",
 ]
-
+ 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-mock",
+    "black",
+    "ruff",
+]
+ 
 [tool.setuptools.packages.find]
 where = ["src"]
+ 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

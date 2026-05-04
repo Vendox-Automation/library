@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
-from src.vdx_auto_utils.data_utils import split_dataframe
+from vdx_auto_utils.data_utils import split_dataframe
+
 
 class TestSplitDataframe:
 

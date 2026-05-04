@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch
-from src.vdx_auto_utils.retry_utils import with_retry
+from vdx_auto_utils.retry_utils import with_retry
+
 
 class TestWithRetry:
 
