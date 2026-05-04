@@ -109,7 +109,9 @@ class Scraper:
         driver.implicitly_wait(2)
 
         # Hides navigator.webdriver so sites can't detect Selenium via JS checks
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        driver.execute_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
 
         return driver
 
@@ -289,14 +291,16 @@ class Scraper:
             int: Number of elements clicked.
         """
         try:
-            self.driver.execute_script("""
+            self.driver.execute_script(
+                """
                 const chatWidget = document.querySelector("#chat-widget-container");
                 if (chatWidget) {
                     chatWidget.style.display = "none";
                     chatWidget.style.visibility = "hidden";
                     chatWidget.remove();
                 }
-            """)
+            """
+            )
         except Exception as e:
             logger.warning(f"Failed to suppress live chat widget: {e}")
 
