@@ -46,9 +46,13 @@ class ServiceAccountManager:
         if not service_account_files:
             raise ValueError("service_account_files cannot be empty.")
 
-        filtered_files = self._filter_account_files(service_account_files, account_indices)
+        filtered_files = self._filter_account_files(
+            service_account_files, account_indices
+        )
         if not filtered_files:
-            raise ValueError("No valid service account files available after filtering.")
+            raise ValueError(
+                "No valid service account files available after filtering."
+            )
 
         self.service_account_files = filtered_files
         self.scopes = scopes or self.DEFAULT_SCOPES
@@ -123,9 +127,13 @@ class ServiceAccountManager:
         """
         credentials_file = self.get_current_account_file()
         if not os.path.exists(credentials_file):
-            raise FileNotFoundError(f"Service account file not found: {credentials_file}")
+            raise FileNotFoundError(
+                f"Service account file not found: {credentials_file}"
+            )
 
-        return Credentials.from_service_account_file(credentials_file, scopes=self.scopes)
+        return Credentials.from_service_account_file(
+            credentials_file, scopes=self.scopes
+        )
 
     def get_current_client(self) -> gspread.Client:
         """
@@ -147,7 +155,11 @@ class ServiceAccountManager:
             error: Optional error object for status/debugging visibility.
             cooldown_seconds: Optional override for cooldown duration.
         """
-        cooldown = self.cooldown_seconds if cooldown_seconds is None else max(0, int(cooldown_seconds))
+        cooldown = (
+            self.cooldown_seconds
+            if cooldown_seconds is None
+            else max(0, int(cooldown_seconds))
+        )
         account_index = self.current_account_index
         self._cooldown_until[account_index] = time.time() + cooldown
 
@@ -235,7 +247,9 @@ class ServiceAccountManager:
         self.mark_current_account_exhausted(error=error)
         return self.switch_to_next_account()
 
-    def execute_with_failover(self, operation: Callable[..., Any], *args, **kwargs) -> Any:
+    def execute_with_failover(
+        self, operation: Callable[..., Any], *args, **kwargs
+    ) -> Any:
         """
         Execute an operation that receives a gspread client as first argument.
 
@@ -267,7 +281,9 @@ class ServiceAccountManager:
                     raise
                 attempts += 1
 
-        raise RuntimeError("All service accounts are exhausted or in cooldown.") from last_error
+        raise RuntimeError(
+            "All service accounts are exhausted or in cooldown."
+        ) from last_error
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -282,7 +298,8 @@ class ServiceAccountManager:
             "current_account_file": self.get_current_account_file(),
             "total_accounts": len(self.service_account_files),
             "exhausted_accounts": exhausted_accounts,
-            "available_accounts": len(self.service_account_files) - len(exhausted_accounts),
+            "available_accounts": len(self.service_account_files)
+            - len(exhausted_accounts),
             "cooldown_seconds": self.cooldown_seconds,
             "last_errors": dict(self._last_errors),
         }

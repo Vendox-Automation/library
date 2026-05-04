@@ -9,8 +9,15 @@ from selenium.webdriver.support.ui import Select
 
 logger = logging.getLogger(__name__)
 
+
 class Scraper:
-    def __init__(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
+    def __init__(
+        self,
+        headless=True,
+        allow_media_perms=False,
+        disable_noti=False,
+        window_size: tuple = (1920, 1080),
+    ):
         """
         Initializes the Scraper with a pre-configured Chrome driver.
 
@@ -20,9 +27,20 @@ class Scraper:
             disable_noti (bool): If True, will disable all notifications.
             window_size (tuple): Takes a tuple of (width, height) to set the browser window size. Defaults to (1920, 1080).
         """
-        self.driver = self.setup_driver(headless=headless, allow_media_perms=allow_media_perms, disable_noti=disable_noti, window_size=window_size)
+        self.driver = self.setup_driver(
+            headless=headless,
+            allow_media_perms=allow_media_perms,
+            disable_noti=disable_noti,
+            window_size=window_size,
+        )
 
-    def setup_driver(self, headless=True, allow_media_perms=False, disable_noti=False, window_size: tuple = (1920, 1080)):
+    def setup_driver(
+        self,
+        headless=True,
+        allow_media_perms=False,
+        disable_noti=False,
+        window_size: tuple = (1920, 1080),
+    ):
         """
         Configures Chrome options for anti-detection and stability.
 
@@ -60,7 +78,9 @@ class Scraper:
             }
             opts.add_experimental_option("prefs", prefs)
             opts.add_argument("--use-fake-device-for-media-stream")
-            opts.add_argument("--use-fake-ui-for-media-stream") # Auto-click "Allow" on the permission prompt
+            opts.add_argument(
+                "--use-fake-ui-for-media-stream"
+            )  # Auto-click "Allow" on the permission prompt
 
         driver = webdriver.Chrome(options=opts)
         driver.set_window_size(*window_size)
@@ -71,8 +91,14 @@ class Scraper:
     def _fill_js(self, element, value):
         """Injects value via JS and dispatches input/change events."""
         self.driver.execute_script("arguments[0].value = arguments[1];", element, value)
-        self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', { bubbles: true }));", element)
-        self.driver.execute_script("arguments[0].dispatchEvent(new Event('change', { bubbles: true }));", element)
+        self.driver.execute_script(
+            "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));",
+            element,
+        )
+        self.driver.execute_script(
+            "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+            element,
+        )
 
     def _click_js(self, element):
         """Clicks an element directly via JavaScript."""
@@ -81,6 +107,7 @@ class Scraper:
     def _click_actions(self, element):
         """Scrolls element into view then clicks via ActionChains (bypasses overlays)."""
         from selenium.webdriver.common.action_chains import ActionChains
+
         ActionChains(self.driver).move_to_element(element).click().perform()
 
     def find_input(self, xpath: str, timeout=10):
@@ -154,7 +181,7 @@ class Scraper:
             None
         """
         try:
-            element = self.find_btn(xpath) # Wait for it to be clickable
+            element = self.find_btn(xpath)  # Wait for it to be clickable
             select = Select(element)
             select.select_by_visible_text(option_text)
             logger.info(f"Selected '{option_text}' from dropdown.")
@@ -291,7 +318,9 @@ class Scraper:
         """
         try:
             if not url_fragment:
-                WebDriverWait(self.driver, timeout).until(EC.url_changes(self.driver.current_url))
+                WebDriverWait(self.driver, timeout).until(
+                    EC.url_changes(self.driver.current_url)
+                )
                 return True
             WebDriverWait(self.driver, timeout).until(EC.url_contains(url_fragment))
             return True

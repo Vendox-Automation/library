@@ -5,6 +5,7 @@ Only support Supabase database.
 import psycopg2
 import pandas as pd
 
+
 class Database:
     """
     A database connection manager for PostgreSQL-based databases.
@@ -13,8 +14,15 @@ class Database:
     with context manager support for automatic resource cleanup.
     """
 
-    def __init__(self, database_type: str, user: str = None, password: str = None,
-                 host: str = None, port: str = None, dbname: str = None):
+    def __init__(
+        self,
+        database_type: str,
+        user: str = None,
+        password: str = None,
+        host: str = None,
+        port: str = None,
+        dbname: str = None,
+    ):
         """
         Initialize a Database instance.
 
@@ -69,7 +77,7 @@ class Database:
                     password=self.password,
                     host=self.host,
                     port=self.port,
-                    dbname=self.dbname
+                    dbname=self.dbname,
                 )
                 print("Connection successful!")
                 return self.connection

@@ -8,6 +8,7 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class TelegramBot:
     """
     A wrapper for the Telegram Bot API to send messages to Groups and Topics.
@@ -23,8 +24,15 @@ class TelegramBot:
         self.api_token = api_token
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
 
-    def send_message(self, group_id: str, message: str, topic_id: int = None,
-                     buttons: list = None, reply_to_message_id: int = None, disable_web_page_preview: bool = False):
+    def send_message(
+        self,
+        group_id: str,
+        message: str,
+        topic_id: int = None,
+        buttons: list = None,
+        reply_to_message_id: int = None,
+        disable_web_page_preview: bool = False,
+    ):
         """
         Sends a text message with optional interactive buttons.
         Args:
@@ -41,7 +49,7 @@ class TelegramBot:
             "chat_id": group_id,
             "text": message,
             "parse_mode": "HTML",
-            "disable_web_page_preview": disable_web_page_preview
+            "disable_web_page_preview": disable_web_page_preview,
         }
 
         if topic_id:
@@ -61,13 +69,15 @@ class TelegramBot:
             return response.json()
         except requests.exceptions.RequestException as e:
             try:
-                error_desc = response.json().get('description', 'No description')
+                error_desc = response.json().get("description", "No description")
             except Exception:
                 error_desc = "No response"
             logger.error(f"Failed to send Telegram message: {e} | Detail: {error_desc}")
             return None
 
-    def send_document(self, group_id: str, file_path: str, caption: str = None, topic_id: int = None):
+    def send_document(
+        self, group_id: str, file_path: str, caption: str = None, topic_id: int = None
+    ):
         """
         Sends a file (Document, Photo, or Video) to a specific group or topic.
         Automatically handles different media types and enforces the 50MB limit.
@@ -84,15 +94,17 @@ class TelegramBot:
         # Check 50MB limit (standard Bot API constraint)
         file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
         if file_size_mb > 50:
-            logger.error(f"File too large ({file_size_mb:.2f}MB). Standard API limit is 50MB.")
+            logger.error(
+                f"File too large ({file_size_mb:.2f}MB). Standard API limit is 50MB."
+            )
             return None
 
         # Determine method and payload key based on file extension
         ext = os.path.splitext(file_path)[1].lower()
-        if ext in ['.jpg', '.jpeg', '.png']:
+        if ext in [".jpg", ".jpeg", ".png"]:
             method = "sendPhoto"
             file_key = "photo"
-        elif ext in ['.mp4', '.mov']:
+        elif ext in [".mp4", ".mov"]:
             method = "sendVideo"
             file_key = "video"
         else:
@@ -108,9 +120,11 @@ class TelegramBot:
             payload["message_thread_id"] = topic_id
 
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 files = {file_key: f}
-                response = requests.post(endpoint, data=payload, files=files, timeout=60)
+                response = requests.post(
+                    endpoint, data=payload, files=files, timeout=60
+                )
                 response.raise_for_status()
 
             logger.info(f"File '{os.path.basename(file_path)}' sent via {method}")
@@ -131,13 +145,17 @@ class TelegramBot:
         endpoint = f"{self.base_url}/getUpdates"
         params = {"timeout": timeout, "offset": offset}
         try:
-            response = requests.get(endpoint, params=params, timeout=timeout + 5) # nosec B113
+            response = requests.get(
+                endpoint, params=params, timeout=timeout + 5
+            )  # nosec B113
             return response.json().get("result", [])
         except Exception as e:
             logger.error(f"Error fetching updates: {e}")
             return []
 
-    def answer_callback_query(self, callback_query_id: str, text: str = None, show_alert: bool = False):
+    def answer_callback_query(
+        self, callback_query_id: str, text: str = None, show_alert: bool = False
+    ):
         """
         Acknowledges a callback query and optionally shows a popup alert.
 
@@ -158,9 +176,16 @@ class TelegramBot:
         except Exception as e:
             logger.error(f"Error answering callback query: {e}")
 
-    def send_calendar(self, group_id: str, year: int, month: int,
-                      title: str = "📅 Select a date:", topic_id: int = None,
-                      step: str = "s", picked_start: str = "") -> dict:
+    def send_calendar(
+        self,
+        group_id: str,
+        year: int,
+        month: int,
+        title: str = "📅 Select a date:",
+        topic_id: int = None,
+        step: str = "s",
+        picked_start: str = "",
+    ) -> dict:
         """
         Sends a calendar date-picker message with an inline keyboard.
 
@@ -226,8 +251,9 @@ class TelegramBot:
             topic_id=topic_id,
         )
 
-    def edit_message(self, group_id: str, message_id: int, text: str,
-                     buttons: list = None) -> dict:
+    def edit_message(
+        self, group_id: str, message_id: int, text: str, buttons: list = None
+    ) -> dict:
         """
         Edits the text (and optionally the inline keyboard) of an existing message.
 
@@ -244,10 +270,10 @@ class TelegramBot:
             dict: The Telegram API response, or ``None`` on failure.
         """
         endpoint = f"{self.base_url}/editMessageText"
-        payload  = {
-            "chat_id":    group_id,
+        payload = {
+            "chat_id": group_id,
             "message_id": message_id,
-            "text":       text,
+            "text": text,
             "parse_mode": "HTML",
         }
         if buttons is not None:
@@ -260,8 +286,9 @@ class TelegramBot:
             logger.error(f"Failed to edit message: {e}")
             return None
 
-    def edit_message_keyboard(self, group_id: str, message_id: int,
-                              buttons: list) -> dict:
+    def edit_message_keyboard(
+        self, group_id: str, message_id: int, buttons: list
+    ) -> dict:
         """
         Replaces the inline keyboard of an existing message without changing its text.
 
@@ -276,9 +303,9 @@ class TelegramBot:
             dict: The Telegram API response, or ``None`` on failure.
         """
         endpoint = f"{self.base_url}/editMessageReplyMarkup"
-        payload  = {
-            "chat_id":      group_id,
-            "message_id":   message_id,
+        payload = {
+            "chat_id": group_id,
+            "message_id": message_id,
             "reply_markup": json.dumps({"inline_keyboard": buttons}),
         }
         try:
@@ -290,8 +317,9 @@ class TelegramBot:
             return None
 
     @staticmethod
-    def make_calendar(year: int, month: int,
-                      step: str = "s", picked_start: str = "") -> list:
+    def make_calendar(
+        year: int, month: int, step: str = "s", picked_start: str = ""
+    ) -> list:
         """
         Generates an inline keyboard for a month calendar date picker.
 
@@ -339,9 +367,10 @@ class TelegramBot:
                                                        picked_start="2026-04-10"))
         """
         from datetime import date as _date
-        _DOW      = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+
+        _DOW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
         today_str = _date.today().isoformat()
-        ctx       = f":{picked_start}" if picked_start else ""
+        ctx = f":{picked_start}" if picked_start else ""
 
         if month == 1:
             prev_ym = f"{year - 1}-12"
@@ -352,11 +381,11 @@ class TelegramBot:
         else:
             next_ym = f"{year}-{month + 1:02d}"
 
-        title   = _cal.month_name[month] + f" {year}"
+        title = _cal.month_name[month] + f" {year}"
         nav_row = [
-            {"text": "◀",        "callback_data": f"cal:nav:{prev_ym}:{step}{ctx}"},
-            {"text": f" {title} ","callback_data": "cal:ignore"},
-            {"text": "▶",        "callback_data": f"cal:nav:{next_ym}:{step}{ctx}"},
+            {"text": "◀", "callback_data": f"cal:nav:{prev_ym}:{step}{ctx}"},
+            {"text": f" {title} ", "callback_data": "cal:ignore"},
+            {"text": "▶", "callback_data": f"cal:nav:{next_ym}:{step}{ctx}"},
         ]
         dow_row = [{"text": d, "callback_data": "cal:ignore"} for d in _DOW]
 
@@ -372,8 +401,12 @@ class TelegramBot:
                     row.append({"text": "·", "callback_data": "cal:ignore"})
                 else:
                     label = f"[{day}]" if date_str == today_str else str(day)
-                    row.append({"text": label,
-                                "callback_data": f"cal:day:{date_str}:{step}{ctx}"})
+                    row.append(
+                        {
+                            "text": label,
+                            "callback_data": f"cal:day:{date_str}:{step}{ctx}",
+                        }
+                    )
             week_rows.append(row)
 
         return [nav_row, dow_row] + week_rows
@@ -452,9 +485,9 @@ class TelegramBot:
         if parts[1] == "day" and len(parts) >= 4:
             # cal:day:YYYY-MM-DD:STEP[:START]
             return {
-                "action":       "day",
-                "date":         parts[2],
-                "step":         parts[3],
+                "action": "day",
+                "date": parts[2],
+                "step": parts[3],
                 "picked_start": parts[4] if len(parts) > 4 else "",
             }
 
@@ -463,10 +496,10 @@ class TelegramBot:
             try:
                 y, m = parts[2].split("-")
                 return {
-                    "action":       "nav",
-                    "year":         int(y),
-                    "month":        int(m),
-                    "step":         parts[3],
+                    "action": "nav",
+                    "year": int(y),
+                    "month": int(m),
+                    "step": parts[3],
                     "picked_start": parts[4] if len(parts) > 4 else "",
                 }
             except (ValueError, IndexError):
@@ -474,8 +507,7 @@ class TelegramBot:
 
         return {"action": "ignore"}
 
-    def pin_message(self, group_id: str, message_id: int,
-                    silent: bool = True) -> dict:
+    def pin_message(self, group_id: str, message_id: int, silent: bool = True) -> dict:
         """
         Pins a message in a group or channel.
 
@@ -488,9 +520,9 @@ class TelegramBot:
             dict: The Telegram API response, or ``None`` on failure.
         """
         endpoint = f"{self.base_url}/pinChatMessage"
-        payload  = {
-            "chat_id":              group_id,
-            "message_id":           message_id,
+        payload = {
+            "chat_id": group_id,
+            "message_id": message_id,
             "disable_notification": silent,
         }
         try:

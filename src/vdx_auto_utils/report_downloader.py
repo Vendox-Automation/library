@@ -331,7 +331,9 @@ def merge_auth_headers(
     cookie = session.get("cookie", "")
     has_auth = any(k.lower() == "authorization" for k in headers)
     if token and not has_auth:
-        headers["Authorization"] = authorization_header_value(token, authorization_prefix)
+        headers["Authorization"] = authorization_header_value(
+            token, authorization_prefix
+        )
     if cookie and not any(k.lower() == "cookie" for k in headers):
         headers["Cookie"] = cookie
     return headers
@@ -429,7 +431,9 @@ def resolve_report_dates(date_config: Optional[Dict[str, Any]]) -> Tuple[str, st
         start_raw = str(cfg.get("start_date", "")).strip()
         end_raw = str(cfg.get("end_date", "")).strip()
         if not start_raw or not end_raw:
-            raise ValueError("start_date and end_date are required when follow_date_range is True.")
+            raise ValueError(
+                "start_date and end_date are required when follow_date_range is True."
+            )
         start_dt = datetime.strptime(start_raw, "%Y-%m-%d").date()
         end_dt = datetime.strptime(end_raw, "%Y-%m-%d").date()
     else:
@@ -497,14 +501,18 @@ def run_login_and_report(
     log = logger or logging.getLogger(__name__)
     validate_login_frame(login_frame)
     login_url = login_frame["login_url"]
-    login_payload = replace_otp_urls_in_payload(dict(login_frame["login_payload"]), log=log)
+    login_payload = replace_otp_urls_in_payload(
+        dict(login_frame["login_payload"]), log=log
+    )
     login_headers = login_frame["login_headers"]
 
     common = report_config.get("common", {}) or {}
     reports = report_config.get("reports", []) or []
     enabled_reports = [r for r in reports if bool(r.get("enabled", False))]
     if not enabled_reports:
-        raise ValueError("No report selected. Set at least one report with enabled=True.")
+        raise ValueError(
+            "No report selected. Set at least one report with enabled=True."
+        )
 
     log.info("[1/3] Logging in...")
     content_type = str(login_headers.get("content-type", "")).lower()
@@ -519,7 +527,11 @@ def run_login_and_report(
     login_resp.raise_for_status()
 
     session = extract_session(login_resp)
-    auth_source = "token" if session.get("token") else ("cookie" if session.get("cookie") else "none")
+    auth_source = (
+        "token"
+        if session.get("token")
+        else ("cookie" if session.get("cookie") else "none")
+    )
     log.info("Login success. Auth source: %s", auth_source)
     if auth_source == "none":
         raise RuntimeError("Login did not return cookie/token.")
@@ -534,25 +546,35 @@ def run_login_and_report(
     for idx, report in enumerate(enabled_reports, start=1):
         report_name = str(report.get("report_name", "report")).strip() or "report"
         report_url = str(report.get("report_url", "")).strip()
-        report_method = str(report.get("report_method", common.get("report_method", "GET"))).upper().strip()
+        report_method = (
+            str(report.get("report_method", common.get("report_method", "GET")))
+            .upper()
+            .strip()
+        )
         report_payload = report.get("report_payload", {}) or {}
         report_headers = merge_auth_headers(
             report.get("report_headers", {}), session, authorization_prefix
         )
         save_path = str(report.get("save_path", common.get("save_path", ""))).strip()
         output_template = (
-            str(report.get("output_filename", common.get("output_filename", ""))).strip()
+            str(
+                report.get("output_filename", common.get("output_filename", ""))
+            ).strip()
             or "{report_name}_result.csv"
         )
 
         if not report_url:
             raise ValueError(f"report_url is required for report: {report_name}")
         if report_method not in ("GET", "POST"):
-            raise ValueError(f"report_method must be GET or POST for report: {report_name}")
+            raise ValueError(
+                f"report_method must be GET or POST for report: {report_name}"
+            )
         if not save_path:
             raise ValueError(f"save_path is required (report: {report_name})")
 
-        report_url = report_url.replace("{start_date}", start_date).replace("{end_date}", end_date)
+        report_url = report_url.replace("{start_date}", start_date).replace(
+            "{end_date}", end_date
+        )
         report_url = report_url.replace("{timestamp}", str(current_timestamp))
         if report_url.endswith("&_="):
             report_url = report_url + str(current_timestamp)
@@ -575,20 +597,32 @@ def run_login_and_report(
         if session.get("merchant_id") and "merchant_id" not in report_payload:
             report_payload["merchant_id"] = session["merchant_id"]
 
-        log.info("[2/3] Requesting report %s/%s: %s...", idx, total_enabled, report_name)
+        log.info(
+            "[2/3] Requesting report %s/%s: %s...", idx, total_enabled, report_name
+        )
         if report_method == "GET":
             report_resp = requests.get(
-                report_url, headers=report_headers, params=report_payload, timeout=report_timeout
+                report_url,
+                headers=report_headers,
+                params=report_payload,
+                timeout=report_timeout,
             )
         else:
             report_resp = requests.post(
-                report_url, headers=report_headers, json=report_payload, timeout=report_timeout
+                report_url,
+                headers=report_headers,
+                json=report_payload,
+                timeout=report_timeout,
             )
         report_resp.raise_for_status()
 
         text_preview = (report_resp.text or "").lstrip().lower()
-        if text_preview.startswith("<!doctype html") or text_preview.startswith("<html"):
-            raise RuntimeError(f"Report '{report_name}' response is HTML (likely redirected to login).")
+        if text_preview.startswith("<!doctype html") or text_preview.startswith(
+            "<html"
+        ):
+            raise RuntimeError(
+                f"Report '{report_name}' response is HTML (likely redirected to login)."
+            )
 
         try:
             report_json = report_resp.json()
@@ -606,7 +640,9 @@ def run_login_and_report(
             json_output = output_path.replace(".csv", ".json")
             write_json(json_output, report_json)
             output_path = json_output
-            log.info("No tabular rows detected for %s, saved JSON fallback", report_name)
+            log.info(
+                "No tabular rows detected for %s, saved JSON fallback", report_name
+            )
 
         log.info("Output (%s): %s", report_name, output_path)
         output_paths.append(output_path)

@@ -13,6 +13,7 @@ from .service_account_manager import ServiceAccountManager
 socket.setdefaulttimeout(60)
 logger = logging.getLogger(__name__)
 
+
 class GoogleSheetUploader:
     """
     A reusable module to upload a Pandas DataFrame to a Google Sheet.
@@ -73,7 +74,9 @@ class GoogleSheetUploader:
                 raise FileNotFoundError(
                     f"Credentials file not found at: {credentials_file}"
                 )
-            logger.info("Authenticating with single credentials file: %s", credentials_file)
+            logger.info(
+                "Authenticating with single credentials file: %s", credentials_file
+            )
             creds = ServiceAccountCredentials.from_json_keyfile_name(
                 credentials_file, self.SCOPES
             )
@@ -187,7 +190,9 @@ class GoogleSheetUploader:
                                mapping to reorder/space columns before upload.
         """
         if gsheet_layout_map:
-            dataframe = self._format_dataframe_to_gsheet_layout(dataframe, gsheet_layout_map)
+            dataframe = self._format_dataframe_to_gsheet_layout(
+                dataframe, gsheet_layout_map
+            )
 
         try:
             # 1. Open spreadsheet and worksheet
@@ -201,6 +206,7 @@ class GoogleSheetUploader:
             start_row_int = 1
 
             if upload_start_cell.upper() == "APPEND":
+
                 def _get_all(client):
                     ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
                     return ws.get_all_values()
@@ -229,9 +235,7 @@ class GoogleSheetUploader:
             current_cols = worksheet.col_count
 
             if required_cols > current_cols:
-                logger.info(
-                    "Expanding columns: %d → %d", current_cols, required_cols
-                )
+                logger.info("Expanding columns: %d → %d", current_cols, required_cols)
 
                 def _resize_cols(client):
                     ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
@@ -292,21 +296,26 @@ class GoogleSheetUploader:
             if len(data_to_upload) > chunk_size:
                 logger.info("Large file — uploading in chunks of %d…", chunk_size)
                 for i in range(0, len(data_to_upload), chunk_size):
-                    chunk = data_to_upload[i: i + chunk_size]
+                    chunk = data_to_upload[i : i + chunk_size]
                     chunk_start_row = start_row_int + i
                     chunk_range = f"A{chunk_start_row}"
 
                     def _upload_chunk(client, _range=chunk_range, _chunk=chunk):
-                        ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                        ws = client.open_by_key(spreadsheet_id).worksheet(
+                            worksheet_name
+                        )
                         ws.update(_range, _chunk, value_input_option="USER_ENTERED")
 
                     self._run(_upload_chunk)
                     logger.info("Uploaded rows %d – %d.", i, i + len(chunk))
                     time.sleep(1)
             else:
+
                 def _upload(client):
                     ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
-                    ws.update(start_cell, data_to_upload, value_input_option="USER_ENTERED")
+                    ws.update(
+                        start_cell, data_to_upload, value_input_option="USER_ENTERED"
+                    )
 
                 self._run(_upload)
 
@@ -394,9 +403,7 @@ class GoogleSheetUploader:
             ws.batch_update(batch_data, value_input_option="USER_ENTERED")
 
         self._run(_batch_update)
-        logger.info(
-            "Batch updated %d rows in '%s'.", len(dataframe), worksheet_name
-        )
+        logger.info("Batch updated %d rows in '%s'.", len(dataframe), worksheet_name)
 
     @staticmethod
     def _col_letter_to_index(letter: str) -> int:

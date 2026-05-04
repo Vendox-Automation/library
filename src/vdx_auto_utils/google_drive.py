@@ -4,6 +4,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from typing import List, Dict, Optional
 
+
 class DriveManager:
     """
     A reusable module for interacting with the Google Drive API.
@@ -20,15 +21,16 @@ class DriveManager:
         """
         if scopes is None:
             scopes = [
-                'https://www.googleapis.com/auth/drive',
-                'https://www.googleapis.com/auth/spreadsheets.readonly'
+                "https://www.googleapis.com/auth/drive",
+                "https://www.googleapis.com/auth/spreadsheets.readonly",
             ]
 
         self.creds = service_account.Credentials.from_service_account_file(
-            service_account_file, scopes=scopes)
+            service_account_file, scopes=scopes
+        )
 
-        self.service = build('drive', 'v3', credentials=self.creds)
-        self.sheets_service = build('sheets', 'v4', credentials=self.creds)
+        self.service = build("drive", "v3", credentials=self.creds)
+        self.sheets_service = build("sheets", "v4", credentials=self.creds)
 
     def search_files(self, query: str) -> List[Dict]:
         """
@@ -40,10 +42,18 @@ class DriveManager:
         Returns:
             A list of file metadata dictionaries matching the query.
         """
-        response = self.service.files().list(
-            q=query, spaces='drive', supportsAllDrives=True,
-            includeItemsFromAllDrives=True, fields='files(id, name)').execute()
-        return response.get('files', [])
+        response = (
+            self.service.files()
+            .list(
+                q=query,
+                spaces="drive",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                fields="files(id, name)",
+            )
+            .execute()
+        )
+        return response.get("files", [])
 
     def get_folder_id_by_name(self, parent_id: str, target_name: str) -> Optional[str]:
         """
@@ -56,12 +66,23 @@ class DriveManager:
         Returns:
             The ID of the target folder if found, else None.
         """
-        query = (f"name = '{target_name}' and '{parent_id}' in parents and "
-                 f"mimeType = 'application/vnd.google-apps.folder' and trashed = false")
-        response = self.service.files().list(q=query, spaces='drive', supportsAllDrives=True,
-                                       includeItemsFromAllDrives=True, fields='files(id, name)').execute()
-        files = response.get('files', [])
-        return files[0]['id'] if files else None
+        query = (
+            f"name = '{target_name}' and '{parent_id}' in parents and "
+            f"mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        )
+        response = (
+            self.service.files()
+            .list(
+                q=query,
+                spaces="drive",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                fields="files(id, name)",
+            )
+            .execute()
+        )
+        files = response.get("files", [])
+        return files[0]["id"] if files else None
 
     def navigate_path(self, root_id: str, path_list: List[str]) -> Optional[str]:
         """
@@ -95,11 +116,16 @@ class DriveManager:
         Returns:
             The metadata of the copied file.
         """
-        copy_body = {'name': new_name, 'parents': [parent_id]}
-        return self.service.files().copy(
-            fileId=file_id, body=copy_body, supportsAllDrives=True).execute()
+        copy_body = {"name": new_name, "parents": [parent_id]}
+        return (
+            self.service.files()
+            .copy(fileId=file_id, body=copy_body, supportsAllDrives=True)
+            .execute()
+        )
 
-    def find_files_by_keywords(self, folder_id: str, keyword_map: Dict[str, str]) -> Dict[str, Optional[str]]:
+    def find_files_by_keywords(
+        self, folder_id: str, keyword_map: Dict[str, str]
+    ) -> Dict[str, Optional[str]]:
         """
         Maps files in a folder to keys based on keyword matching in filenames.
 
@@ -111,18 +137,30 @@ class DriveManager:
             A dictionary mapping each key to the corresponding file ID or None if not found.
         """
         query = f"'{folder_id}' in parents and trashed = false"
-        items = self.service.files().list(q=query, spaces='drive', supportsAllDrives=True,
-                                    includeItemsFromAllDrives=True, fields='files(id, name)').execute().get('files', [])
+        items = (
+            self.service.files()
+            .list(
+                q=query,
+                spaces="drive",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                fields="files(id, name)",
+            )
+            .execute()
+            .get("files", [])
+        )
 
         results = {key: None for key in keyword_map.keys()}
-        sorted_keywords = sorted(keyword_map.items(), key=lambda x: len(x[1]), reverse=True)
+        sorted_keywords = sorted(
+            keyword_map.items(), key=lambda x: len(x[1]), reverse=True
+        )
         assigned_file_ids = set()
 
         for key, pattern in sorted_keywords:
             for item in items:
-                if item['id'] not in assigned_file_ids and pattern in item['name']:
-                    results[key] = item['id']
-                    assigned_file_ids.add(item['id'])
+                if item["id"] not in assigned_file_ids and pattern in item["name"]:
+                    results[key] = item["id"]
+                    assigned_file_ids.add(item["id"])
                     break
         return results
 
@@ -142,7 +180,9 @@ class DriveManager:
         request = self.service.files().get_media(fileId=file_id)
         return pd.read_csv(io.BytesIO(request.execute()), low_memory=False)
 
-    def read_sheet_from_drive(self, file_id: str, sheet_name: str = None) -> Optional[pd.DataFrame]:
+    def read_sheet_from_drive(
+        self, file_id: str, sheet_name: str = None
+    ) -> Optional[pd.DataFrame]:
         """
         Reads a native Google Sheet directly using the Sheets API (bypasses export size limits).
 
@@ -157,17 +197,25 @@ class DriveManager:
         try:
             # 1. If no sheet_name is provided, grab the metadata to find the first tab's name
             if not sheet_name:
-                sheet_metadata = self.sheets_service.spreadsheets().get(spreadsheetId=file_id).execute()
-                sheets = sheet_metadata.get('sheets', [])
+                sheet_metadata = (
+                    self.sheets_service.spreadsheets()
+                    .get(spreadsheetId=file_id)
+                    .execute()
+                )
+                sheets = sheet_metadata.get("sheets", [])
                 if not sheets:
                     return None
                 sheet_name = sheets[0].get("properties", {}).get("title", "Sheet1")
 
             # 2. Fetch the raw values for the target sheet
-            result = self.sheets_service.spreadsheets().values().get(
-                spreadsheetId=file_id, range=sheet_name).execute()
+            result = (
+                self.sheets_service.spreadsheets()
+                .values()
+                .get(spreadsheetId=file_id, range=sheet_name)
+                .execute()
+            )
 
-            values = result.get('values', [])
+            values = result.get("values", [])
 
             if not values:
                 print(f"⚠️ No data found in sheet: {sheet_name}")

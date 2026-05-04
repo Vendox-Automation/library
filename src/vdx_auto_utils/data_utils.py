@@ -1,7 +1,10 @@
 import pandas as pd
 from typing import Tuple
 
-def split_dataframe(df: pd.DataFrame, mask: pd.Series) -> Tuple[pd.DataFrame, pd.DataFrame]:
+
+def split_dataframe(
+    df: pd.DataFrame, mask: pd.Series
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Splits a DataFrame into two based on a boolean mask.
 

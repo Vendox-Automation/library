@@ -7,6 +7,7 @@ from typing import Callable, Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 class GoogleSheetsListener:
     """
     A reusable listener that monitors a Google Sheet for triggers.
@@ -14,16 +15,18 @@ class GoogleSheetsListener:
     """
 
     SCOPES = [
-        'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive'
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
     ]
 
-    def __init__(self,
-                 credentials_file: str,
-                 spreadsheet_id: str,
-                 worksheet_name: str,
-                 header_map: Dict[str, str],
-                 check_interval: int = 10):
+    def __init__(
+        self,
+        credentials_file: str,
+        spreadsheet_id: str,
+        worksheet_name: str,
+        header_map: Dict[str, str],
+        check_interval: int = 10,
+    ):
         self.spreadsheet_id = spreadsheet_id
         self.worksheet_name = worksheet_name
         self.header_map = header_map
@@ -31,14 +34,18 @@ class GoogleSheetsListener:
         self._is_listening = False
 
         # Internal Authentication
-        self.creds = Credentials.from_service_account_file(credentials_file, scopes=self.SCOPES)
+        self.creds = Credentials.from_service_account_file(
+            credentials_file, scopes=self.SCOPES
+        )
         self.client = gspread.authorize(self.creds)
 
         socket.setdefaulttimeout(120)
 
     def _get_worksheet(self):
         """Fetches the worksheet instance."""
-        return self.client.open_by_key(self.spreadsheet_id).worksheet(self.worksheet_name)
+        return self.client.open_by_key(self.spreadsheet_id).worksheet(
+            self.worksheet_name
+        )
 
     def write_to_cell(self, row_index: int, column_name: str, value: Any):
         """
@@ -63,7 +70,7 @@ class GoogleSheetsListener:
         while self._is_listening:
             try:
                 ws = self._get_worksheet()
-                all_values = ws.get_all_values() #
+                all_values = ws.get_all_values()  #
 
                 if not all_values or len(all_values) < 2:
                     time.sleep(self.check_interval)
@@ -71,7 +78,10 @@ class GoogleSheetsListener:
 
                 headers = all_values[0]
                 try:
-                    indices = {key: headers.index(name) for key, name in self.header_map.items()}
+                    indices = {
+                        key: headers.index(name)
+                        for key, name in self.header_map.items()
+                    }
                 except ValueError as e:
                     logger.error(f"Header mismatch: {e}")
                     time.sleep(30)
@@ -83,14 +93,14 @@ class GoogleSheetsListener:
                     if len(row) <= max_idx:
                         row.extend([""] * (max_idx - len(row) + 1))
 
-                    trigger_val = str(row[indices['trigger']]).upper()
-                    status_val = str(row[indices['status']]).strip()
+                    trigger_val = str(row[indices["trigger"]]).upper()
+                    status_val = str(row[indices["status"]]).strip()
 
                     # Trigger only if Checkbox is TRUE and Status/Remarks is empty
                     if trigger_val == "TRUE" and not status_val:
                         # Package data
                         data_package = {key: row[idx] for key, idx in indices.items()}
-                        data_package['row_index'] = i
+                        data_package["row_index"] = i
 
                         # Execute your custom logic
                         # You are now responsible for updating the 'status' column

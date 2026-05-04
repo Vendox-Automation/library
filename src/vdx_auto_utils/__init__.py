@@ -12,7 +12,7 @@ from .report_downloader import (
     extract_session,
     merge_auth_headers,
     replace_otp_urls_in_payload,
-    validate_login_frame
+    validate_login_frame,
 )
 from .retry_utils import with_retry
 
