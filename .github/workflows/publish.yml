@@ -1,0 +1,63 @@
+name: Publish
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "*.txt"
+
+# Only runs on push to main — NOT on pull requests.
+# A release is only created when code is actually merged.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Only runs if the push was NOT from the version bumper bot.
+    # Without this, the version bump commit triggers a second release.
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build frontend
+        run: pip install build
+
+      - name: Build wheel
+        run: python -m build --wheel
+
+      - name: Read version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(python -c "
+          import re
+          with open('pyproject.toml') as f:
+              m = re.search(r'version\s*=\s*\"([^\"]+)\"', f.read())
+          print(m.group(1))
+          ")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing version: $VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            dist/*.whl \
+            --title "v${{ steps.version.outputs.version }}" \
+            --generate-notes \
+            --latest
