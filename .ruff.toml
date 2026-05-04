@@ -1,0 +1,13 @@
+# .ruff.toml — placed at the repo root
+line-length = 120
+
+[lint]
+# E = pycodestyle errors
+# F = pyflakes (unused imports, undefined names)
+# W = pycodestyle warnings
+select = ["E", "F", "W"]
+
+ignore = [
+    "E501",   # line too long — black handles this
+    "F401",   # unused imports — too noisy on first run, enable later
+]
