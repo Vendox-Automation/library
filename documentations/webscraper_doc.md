@@ -6,6 +6,7 @@
 - [Overview](#overview)
 - [Class: Scraper](#class-scraper)
   - [Initialization](#initialization)
+  - [Chrome Profile (Persistent Login)](#chrome-profile-persistent-login)
   - [Methods](#methods)
     - [find_input](#find_input)
     - [fill_input](#fill_input)
@@ -36,8 +37,13 @@
 
 2. **Initialize**:
     ```python
+    # Starts a fresh session (guest mode)
     scraper = Scraper(headless=True)
+
+    # Persists login session (saves cookies to disk)
+    scraper = Scraper(headless=True, use_profile=True)
     ```
+
 
 3. **Navigate**:
     ```python
@@ -79,15 +85,26 @@ For sites that check browser fingerprints or user-agent strings, use `SpoofScrap
 ### Initialization
 ```python
 def __init__(self, headless: bool = True, allow_media_perms: bool = False,
-             disable_noti: bool = False, window_size: tuple = (1920, 1080))
+             disable_noti: bool = False, window_size: tuple = (1920, 1080),
+             use_profile: bool = False)
 ```
 Creates and stores a configured Chrome WebDriver instance at `self.driver`.
 
-- **Parameters:**
-  - `headless` (bool): Run Chrome without a visible window. Set to `False` for debugging. Defaults to `True`.
-  - `allow_media_perms` (bool): Auto-grants camera and microphone permissions. Useful for automating webcam-based flows. Defaults to `False`.
-  - `disable_noti` (bool): Disables browser notifications and certificate error prompts. Defaults to `False`.
-  - `window_size` (tuple): Browser window size as `(width, height)`. Defaults to `(1920, 1080)`.
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `headless` | bool | `True` | Runs Chrome without a visible window |
+| `allow_media_perms` | bool | `False` | Grants and initializes camera and microphone access |
+| `disable_noti` | bool | `False` | Suppresses browser notifications and certificate errors |
+| `window_size` | tuple | `(1920, 1080)` | Sets the browser window width and height |
+| `use_profile` | bool | `False` | Saves your login session to `chrome_profile/` so you stay logged in between runs |
+
+---
+
+## Chrome Profile (Persistent Login)
+
+By default (`use_profile=False`), the scraper runs in **guest mode** — every run starts fresh with no saved cookies or login state.
+
+Setting `use_profile=True` tells Chrome to save your session to a `chrome_profile/` folder in your project directory. On the next run, your login is automatically restored without needing to enter credentials again.
 
 ---
 
