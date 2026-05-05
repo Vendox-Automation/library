@@ -147,6 +147,18 @@ pytest tests/test_database.py -v
 pytest tests/test_database.py::TestDatabase::test_connect_supabase_success -v
 ```
 
+### If standard pytest doesn't work try
+``` bash
+# Run the full test suite
+python -m pytest tests/ -v
+
+# Run a specific test file
+python -m pytest tests/test_database.py -v
+
+# Run a specific test
+python -m pytest tests/test_database py::TestDatabase::test_connect_supabase_success -v
+```
+
 ---
 
 ## Running lint locally
