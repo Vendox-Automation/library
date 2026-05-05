@@ -15,6 +15,10 @@ from .report_downloader import (
     validate_login_frame,
 )
 from .retry_utils import with_retry
+from .network_resilience import (
+    call_with_network_retry,
+    is_retryable_network_error,
+)
 
 __all__ = [
     "CSVFilter",
@@ -32,4 +36,6 @@ __all__ = [
     "replace_otp_urls_in_payload",
     "validate_login_frame",
     "with_retry",
+    "is_retryable_network_error",
+    "call_with_network_retry",
 ]
