@@ -3,8 +3,8 @@
 ## How this repo works
 
 Only the repo owner can merge into `main`. All changes must come through a
-pull request. CI must be fully green before a PR can be merged. Once merged,
-the version bumps and a new release is published automatically.
+pull request. All CI checks must be fully green before a PR can be merged.
+Once merged, the version bumps and a new release is published automatically.
 
 ---
 
@@ -70,44 +70,60 @@ git commit -m "chore(deps): upgrade selenium to 4.x"
 > this format. Commits that don't match are skipped in the Notion/Jira log
 > and default to a patch bump.
 
-### 4. Push your branch
+### 4. Run lint and tests locally before pushing
+Catch issues before CI does — saves time waiting for the pipeline.
+```bash
+# Fix formatting
+python -m black --target-version py312 src/
+
+# Fix style issues
+python -m ruff check src/ --fix --unsafe-fixes
+
+# Run tests
+pytest tests/ -v
+```
+
+### 5. Push your branch
 ```bash
 git push origin fix/database-timeout
 ```
 
-### 5. Open a Pull Request
+### 6. Open a Pull Request
 - Go to the repo on GitHub
 - You'll see a banner: **"Compare & pull request"** — click it
 - Make sure the base branch is set to `main`
 - Write a short description of what changed and why
 - Submit the PR
 
-### 6. Wait for CI and review
-Four checks run automatically:
+### 7. Wait for CI and review
+One pipeline runs automatically with 5 required checks:
 
 | Check | What it does |
 |-------|-------------|
-| Lint | ruff + black formatting |
-| Test | pytest on Python 3.11 and 3.12 |
-| Security | pip-audit CVE scan + bandit SAST |
-| Build | Builds the .whl package |
+| `lint` | ruff + black formatting |
+| `test (3.11)` | pytest on Python 3.11 |
+| `test (3.12)` | pytest on Python 3.12 |
+| `security` | pip-audit CVE scan + bandit SAST |
+| `build` | Builds the .whl package |
 
-All four must be green before the PR can be merged. If something fails,
+All 5 must be green before the PR can be merged. If something fails,
 fix it on your branch and push again — CI re-runs automatically.
+
+**Do not ask to merge a red PR.** Fix the failure first.
 
 The repo owner will review and either approve or request changes.
 
-### 7. After your PR is merged
+### 8. After your PR is merged
 The following happens automatically — you don't need to do anything:
 
 ```
 PR merged to main
       ↓
-CI passes
+lint → test → security → build  (all must pass)
       ↓
 Version bumped in pyproject.toml
       ↓
-New GitHub Release published with .whl attached
+New GitHub Release published
 ```
 
 Sync your local main afterwards before starting the next piece of work:
@@ -131,6 +147,8 @@ pytest tests/test_database.py -v
 pytest tests/test_database.py::TestDatabase::test_connect_supabase_success -v
 ```
 
+---
+
 ## Running lint locally
 
 ```bash
@@ -149,19 +167,16 @@ python -m black --target-version py312 src/
 
 ---
 
-## Installing the latest release
-
-After a PR is merged a new release is published automatically. Install it with:
+## Installing the latest version
 
 ```bash
-pip install "vdx_auto_utils @ https://github.com/Vendox-Automation/library/releases/latest/download/vdx_auto_utils-VERSION-py3-none-any.whl" --force-reinstall
+pip install git+https://github.com/Vendox-Automation/library --force-reinstall
 ```
-
-> **Note:** Replace `VERSION` with the actual version number, e.g. `0.8.12`.
-> You can find the latest version and exact filename on the
-> [Releases page](https://github.com/Vendox-Automation/library/releases/latest).
 
 To pin a specific version:
 ```bash
-pip install "vdx_auto_utils @ https://github.com/Vendox-Automation/library/releases/download/v0.8.12/vdx_auto_utils-0.8.12-py3-none-any.whl"
+pip install git+https://github.com/Vendox-Automation/library@v0.8.29
 ```
+
+You can find all available versions on the
+[Releases page](https://github.com/Vendox-Automation/library/releases).
