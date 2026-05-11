@@ -381,7 +381,15 @@ class GoogleSheetUploader:
                 ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
                 ws.add_rows(rows_to_add)
 
-            self._run(_add_rows)
+            try:
+                self._run(_add_rows)
+            except Exception as resize_err:
+                if "10000000 cells" in str(resize_err):
+                    raise Exception(
+                        "Sheet full — the Google Sheet has hit the 10M cell limit. "
+                        "Archive old data or use a new sheet."
+                    ) from resize_err
+                raise
 
         # Build batch payload
         end_row = final_start_row + len(dataframe) - 1
