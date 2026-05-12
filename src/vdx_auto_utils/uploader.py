@@ -392,7 +392,9 @@ class GoogleSheetUploader:
                 raise
 
         # Validate that at least one mapped column exists before touching the sheet
-        valid_cols = {sc: dc for sc, dc in gsheet_layout_map.items() if dc in dataframe.columns}
+        valid_cols = {
+            sc: dc for sc, dc in gsheet_layout_map.items() if dc in dataframe.columns
+        }
         if not valid_cols:
             logger.info("No valid columns found to update.")
             return
@@ -402,7 +404,11 @@ class GoogleSheetUploader:
         total_rows = len(dataframe)
 
         if total_rows > chunk_size:
-            logger.info("Large dataset (%d rows) — uploading in chunks of %d…", total_rows, chunk_size)
+            logger.info(
+                "Large dataset (%d rows) — uploading in chunks of %d…",
+                total_rows,
+                chunk_size,
+            )
 
         for i in range(0, max(total_rows, 1), chunk_size):
             chunk_df = dataframe.iloc[i : i + chunk_size]
@@ -415,7 +421,9 @@ class GoogleSheetUploader:
             batch_data = []
             for sheet_col, df_col in valid_cols.items():
                 values = chunk_df[[df_col]].fillna("").astype(str).values.tolist()
-                target_range = f"{sheet_col}{chunk_start_row}:{sheet_col}{chunk_end_row}"
+                target_range = (
+                    f"{sheet_col}{chunk_start_row}:{sheet_col}{chunk_end_row}"
+                )
                 batch_data.append({"range": target_range, "values": values})
 
             def _batch_update(client, _data=batch_data):
