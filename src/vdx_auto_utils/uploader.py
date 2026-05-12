@@ -391,27 +391,44 @@ class GoogleSheetUploader:
                     ) from resize_err
                 raise
 
-        # Build batch payload
-        end_row = final_start_row + len(dataframe) - 1
-        batch_data = []
-
-        for sheet_col, df_col in gsheet_layout_map.items():
-            if df_col not in dataframe.columns:
-                continue
-            values = dataframe[[df_col]].fillna("").astype(str).values.tolist()
-            target_range = f"{sheet_col}{final_start_row}:{sheet_col}{end_row}"
-            batch_data.append({"range": target_range, "values": values})
-
-        if not batch_data:
+        # Validate that at least one mapped column exists before touching the sheet
+        valid_cols = {sc: dc for sc, dc in gsheet_layout_map.items() if dc in dataframe.columns}
+        if not valid_cols:
             logger.info("No valid columns found to update.")
             return
 
-        def _batch_update(client):
-            ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
-            ws.batch_update(batch_data, value_input_option="USER_ENTERED")
+        # Upload in chunks for large DataFrames (mirrors upload_dataframe_to_sheet)
+        chunk_size = 5000
+        total_rows = len(dataframe)
 
-        self._run(_batch_update)
-        logger.info("Batch updated %d rows in '%s'.", len(dataframe), worksheet_name)
+        if total_rows > chunk_size:
+            logger.info("Large dataset (%d rows) — uploading in chunks of %d…", total_rows, chunk_size)
+
+        for i in range(0, max(total_rows, 1), chunk_size):
+            chunk_df = dataframe.iloc[i : i + chunk_size]
+            if chunk_df.empty:
+                break
+
+            chunk_start_row = final_start_row + i
+            chunk_end_row = chunk_start_row + len(chunk_df) - 1
+
+            batch_data = []
+            for sheet_col, df_col in valid_cols.items():
+                values = chunk_df[[df_col]].fillna("").astype(str).values.tolist()
+                target_range = f"{sheet_col}{chunk_start_row}:{sheet_col}{chunk_end_row}"
+                batch_data.append({"range": target_range, "values": values})
+
+            def _batch_update(client, _data=batch_data):
+                ws = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+                ws.batch_update(_data, value_input_option="USER_ENTERED")
+
+            self._run(_batch_update)
+
+            if total_rows > chunk_size:
+                logger.info("Uploaded rows %d – %d.", i + 1, i + len(chunk_df))
+                time.sleep(1)
+
+        logger.info("Batch updated %d rows in '%s'.", total_rows, worksheet_name)
 
     @staticmethod
     def _col_letter_to_index(letter: str) -> int:
