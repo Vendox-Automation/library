@@ -3,7 +3,7 @@ from .data_utils import split_dataframe
 from .database import Database
 from .google_drive import DriveManager
 from .listener import GoogleSheetsListener
-from .ocr import recognize_captcha
+from .ocr import CaptchaRecognizer, recognize_captcha
 from .report_downloader import (
     extract_session,
     merge_auth_headers,
@@ -33,5 +33,6 @@ __all__ = [
     "replace_otp_urls_in_payload",
     "validate_login_frame",
     "with_retry",
+    "CaptchaRecognizer",
     "recognize_captcha",
 ]
