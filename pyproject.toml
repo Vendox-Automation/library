@@ -28,6 +28,11 @@ dependencies = [
 ]
  
 [project.optional-dependencies]
+ocr = [
+    "opencv-python-headless",
+    "google-genai",
+    "google-api-core",
+]
 dev = [
     "pytest",
     "pytest-mock",
