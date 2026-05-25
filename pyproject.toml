@@ -25,8 +25,11 @@ dependencies = [
     "requests",
     "psycopg2",
     "pyotp",
+    "opencv-python-headless",
+    "google-genai",
+    "google-api-core",
 ]
- 
+
 [project.optional-dependencies]
 dev = [
     "pytest",
