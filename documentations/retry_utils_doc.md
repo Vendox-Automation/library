@@ -1,96 +1,96 @@
 # retry_utils Documentation
 
-## Table of Contents
-- [How to Use in Your Project](#how-to-use-in-your-project)
-  - [Quick Start Guide](#quick-start-guide)
-- [Overview](#overview)
-- [Decorator: with_retry](#decorator-with_retry)
-- [Usage Example](#usage-example)
-
-## How to Use in Your Project
-
-`with_retry` is a function decorator that automatically retries a function when it raises an exception or returns `None`. Apply it directly above any function definition.
-
-### Quick Start Guide
-
-1. **Import the decorator**:
-    ```python
-    from vdx_auto_utils import with_retry
-    ```
-
-2. **Apply it to a function**:
-    ```python
-    @with_retry(max_attempts=5, delay_seconds=3)
-    def fetch_data():
-        ...
-    ```
-
-3. **Call the function normally** — retries are handled automatically:
-    ```python
-    result = fetch_data()
-    ```
+This file shows how to apply retry logic in your own code with simple patterns.
 
 ---
 
-## Overview
+## Quick decision guide
 
-`with_retry` wraps a function to re-execute it on failure. A retry is triggered when the function either raises any exception or returns `None`. The wait between each attempt increases by 2 seconds progressively (e.g. 3s → 5s → 7s…).
-
-On final failure the decorator returns an empty list (`[]`) if the last result was a list, or `None` for all other return types.
-
----
-
-## Decorator: `with_retry`
-
-```python
-def with_retry(max_attempts: int = 5, delay_seconds: int = 3)
-```
-
-- **Parameters:**
-  - `max_attempts` (int): Maximum number of attempts including the first call. Defaults to `5`.
-  - `delay_seconds` (int): Initial delay in seconds between the first and second attempt. Each subsequent delay increases by `2` seconds. Defaults to `3`.
-
-- **Returns:** The decorated function. On final failure returns `[]` if the last result was a `list`, otherwise `None`.
-
-- **Retry conditions:**
-  - The wrapped function raises any `Exception`.
-  - The wrapped function returns `None`.
-
-- **Delay schedule** (default `delay_seconds=3`):
-
-  | Attempt | Delay before next attempt |
-  |---------|--------------------------|
-  | 1       | 3 s                      |
-  | 2       | 5 s                      |
-  | 3       | 7 s                      |
-  | 4       | 9 s                      |
-  | 5       | Final — no more retries  |
+- Use `with_retry` when you want to retry a normal function (general use).
+- Use `call_with_network_retry` when the risky part is an API/HTTP/Google/network call.
 
 ---
 
-## Usage Example
+## Pattern A: Apply `with_retry` to your function
+
+Best for functions that sometimes fail or return `None`.
 
 ```python
 from vdx_auto_utils import with_retry
 
-# Basic usage — retry up to 5 times with a 3s initial delay
 @with_retry(max_attempts=5, delay_seconds=3)
-def fetch_report(date: str):
-    response = requests.get(f"https://api.example.com/report?date={date}")
-    response.raise_for_status()
-    return response.json()
+def load_rows():
+    # Your business logic
+    rows = fetch_rows_somehow()
+    return rows  # return None will also trigger retry
 
-data = fetch_report("2024-01-01")
-if data is None:
-    print("All attempts failed.")
-
-# Returning a list — gets [] on final failure instead of None
-@with_retry(max_attempts=3, delay_seconds=5)
-def get_rows_from_sheet():
-    rows = sheet.get_all_values()
-    return rows if rows else None  # None triggers a retry
-
-rows = get_rows_from_sheet()
-if not rows:
-    print("No data retrieved after all attempts.")
+rows = load_rows()
+if rows is None:
+    print("Failed after all retries")
 ```
+
+How it behaves:
+- Retries when your function raises an exception.
+- Retries when your function returns `None`.
+- Wait time starts at `delay_seconds`, then increases by +2 seconds each retry.
+
+---
+
+## Pattern B: Wrap only the network call with `call_with_network_retry`
+
+Best for HTTP/API calls where network can be unstable.
+
+```python
+import requests
+from vdx_auto_utils import call_with_network_retry
+
+def get_report(url: str):
+    def do_request():
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return response.json()
+
+    return call_with_network_retry(
+        do_request,
+        operation_name="get_report",
+    )
+```
+
+How it behaves:
+- Retries only when error looks like a retryable network issue.
+- Raises immediately for non-network/non-retryable errors.
+- Uses backoff + jitter by default.
+
+Useful options:
+- `max_attempts`: total tries
+- `base_delay_seconds`: first retry wait
+- `max_delay_seconds`: cap for retry wait
+- `jitter_seconds`: random extra delay
+
+---
+
+## Pattern C: Use your own try/except decision
+
+Use `is_retryable_network_error` if you want full control.
+
+```python
+import time
+from vdx_auto_utils import is_retryable_network_error
+
+for _ in range(3):
+    try:
+        do_network_work()
+        break
+    except Exception as e:
+        if not is_retryable_network_error(e):
+            raise
+        time.sleep(3)
+```
+
+---
+
+## Recommended in real projects
+
+1. Keep retry scope small (retry only the unstable part).
+2. Keep request timeouts (`timeout=...`) in HTTP calls.
+3. Start with defaults; tune only when needed.

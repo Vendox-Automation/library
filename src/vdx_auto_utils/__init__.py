@@ -14,8 +14,8 @@ from .report_downloader import (
     replace_otp_urls_in_payload,
     validate_login_frame,
 )
-from .retry_utils import with_retry
-from .network_resilience import (
+from .retry_utils import (
+    with_retry,
     call_with_network_retry,
     is_retryable_network_error,
 )
