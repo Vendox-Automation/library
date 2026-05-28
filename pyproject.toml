@@ -24,6 +24,7 @@ dependencies = [
     "selenium",
     "requests",
     "psycopg2",
+    "pymysql",
     "pyotp",
 ]
  

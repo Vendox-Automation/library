@@ -5,7 +5,12 @@ from .uploader import GoogleSheetUploader
 from .telegram import TelegramBot
 from .webscraper import Scraper
 from .listener import GoogleSheetsListener
-from .database import Database
+from .database import (
+    Database,
+    MySQLClient,
+    get_mysql_connection,
+    fetch_mysql_rows,
+)
 from .service_account_manager import ServiceAccountManager
 from .report_downloader import (
     run_login_and_report,
@@ -29,6 +34,9 @@ __all__ = [
     "Scraper",
     "GoogleSheetsListener",
     "Database",
+    "MySQLClient",
+    "get_mysql_connection",
+    "fetch_mysql_rows",
     "ServiceAccountManager",
     "run_login_and_report",
     "extract_session",
