@@ -11,7 +11,11 @@ from .report_downloader import (
     run_login_and_report,
     validate_login_frame,
 )
-from .retry_utils import with_retry
+from .retry_utils import (
+    with_retry,
+    call_with_network_retry,
+    is_retryable_network_error,
+)
 from .service_account_manager import ServiceAccountManager
 from .telegram import TelegramBot
 from .uploader import GoogleSheetUploader
