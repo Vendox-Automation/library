@@ -1,10 +1,10 @@
-"""Captcha OCR via Gemini vision models and OpenCV preprocessing.""" 
+"""Captcha OCR via Gemini vision models and OpenCV preprocessing."""
 
 from __future__ import annotations
 
 import base64
 import binascii
-import logging 
+import logging
 import mimetypes
 import time
 from collections import Counter
