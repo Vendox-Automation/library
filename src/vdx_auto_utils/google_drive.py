@@ -208,10 +208,16 @@ class DriveManager:
                 sheet_name = sheets[0].get("properties", {}).get("title", "Sheet1")
 
             # 2. Fetch the raw values for the target sheet
+            # Wrap in single quotes if not already required by Sheets API for names
+            # that contain spaces, parentheses, or other special characters.
+            if not (sheet_name.startswith("'") and sheet_name.endswith("'")):
+                sheet_range = f"'{sheet_name}'"
+            else:
+                sheet_range = sheet_name
             result = (
                 self.sheets_service.spreadsheets()
                 .values()
-                .get(spreadsheetId=file_id, range=sheet_name)
+                .get(spreadsheetId=file_id, range=sheet_range)
                 .execute()
             )
 
