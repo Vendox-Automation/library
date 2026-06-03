@@ -1,9 +1,121 @@
-"""
-Only support Supabase database.
-"""
+"""Database helpers: MySQL read client and Supabase/PostgreSQL ``Database`` class."""
 
-import psycopg2
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Sequence
+
 import pandas as pd
+import psycopg2
+
+try:
+    import pymysql
+except ImportError:  # pragma: no cover
+    pymysql = None
+
+
+class MySQLClient:
+    """Simple MySQL client for read queries (dict rows)."""
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        user: str,
+        password: str,
+        dbname: str,
+        connect_timeout: int = 10,
+    ):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.dbname = dbname
+        self.connect_timeout = connect_timeout
+        self.connection = None
+
+    def connect(self):
+        """Open a MySQL connection. Returns the connection object."""
+        if pymysql is None:
+            raise ImportError(
+                "pymysql is required for MySQLClient. Install with `pip install pymysql`."
+            )
+        self.connection = pymysql.connect(
+            host=self.host,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+            database=self.dbname,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=self.connect_timeout,
+        )
+        return self.connection
+
+    def close(self):
+        """Close the MySQL connection if open."""
+        if self.connection:
+            self.connection.close()
+            self.connection = None
+
+    def query_all(
+        self, sql: str, params: Optional[Sequence[Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Run a SELECT and return rows as a list of dicts."""
+        if not self.connection:
+            raise ConnectionError("Not connected. Call connect() first.")
+        with self.connection.cursor() as cursor:
+            cursor.execute(sql, tuple(params or ()))
+            rows = cursor.fetchall()
+            return list(rows or [])
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
+def get_mysql_connection(
+    host: str,
+    port: int,
+    user: str,
+    password: str,
+    dbname: str,
+    connect_timeout: int = 10,
+):
+    """Create a MySQL connection (same settings as ``MySQLClient``)."""
+    return MySQLClient(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        dbname=dbname,
+        connect_timeout=connect_timeout,
+    ).connect()
+
+
+def fetch_mysql_rows(
+    sql: str,
+    params: Optional[Sequence[Any]] = None,
+    *,
+    host: str,
+    port: int,
+    user: str,
+    password: str,
+    dbname: str,
+    connect_timeout: int = 10,
+) -> List[Dict[str, Any]]:
+    """Run one SELECT using a short-lived ``MySQLClient``."""
+    with MySQLClient(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        dbname=dbname,
+        connect_timeout=connect_timeout,
+    ) as client:
+        return client.query_all(sql, params)
 
 
 class Database:
