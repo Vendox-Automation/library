@@ -29,6 +29,7 @@ dependencies = [
     "opencv-python-headless",
     "google-genai",
     "google-api-core",
+    "pytz",
 ]
 
 [project.optional-dependencies]
