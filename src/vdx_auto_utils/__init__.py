@@ -17,6 +17,7 @@ from .telegram import TelegramBot
 from .uploader import GoogleSheetUploader
 from .webscraper import Scraper
 from .scheduler import Scheduler
+from .logger import Logger
 
 __all__ = [
     "CSVFilter",
