@@ -8,7 +8,7 @@ import pytz
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from logger import Logger
+from .logger import Logger
 
 
 class Scheduler:
