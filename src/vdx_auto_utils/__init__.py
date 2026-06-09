@@ -16,6 +16,7 @@ from .service_account_manager import ServiceAccountManager
 from .telegram import TelegramBot
 from .uploader import GoogleSheetUploader
 from .webscraper import Scraper
+from .scheduler import Scheduler
 
 __all__ = [
     "CSVFilter",
@@ -35,4 +36,5 @@ __all__ = [
     "with_retry",
     "CaptchaRecognizer",
     "recognize_captcha",
+    "Scheduler"
 ]
