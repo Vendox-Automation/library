@@ -68,6 +68,27 @@ The `Database` class is a connection manager for PostgreSQL-based databases (cur
 
 The `Database` class provides a straightforward interface for interacting with a Supabase (PostgreSQL) database. It wraps `psycopg2` for connection management and returns query results as Pandas DataFrames. It also supports Python's context manager protocol (`with` statement) for automatic resource cleanup.
 
+For **MySQL read queries** (automation report scripts), use **`MySQLClient`**:
+
+```python
+from vdx_auto_utils import MySQLClient
+
+with MySQLClient(
+    host="...",
+    port=3306,
+    user="...",
+    password="...",
+    dbname="...",
+) as db:
+    rows = db.query_all(
+        "SELECT * FROM customers WHERE created_at >= %s AND created_at < %s",
+        (date_from, date_to),
+    )
+```
+
+- `query_all` returns `list[dict]` (one dict per row).
+- `fetch_mysql_rows(...)` is a one-shot helper if you do not need to keep a client open.
+
 ---
 
 ## Class: `Database`
