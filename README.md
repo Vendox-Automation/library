@@ -29,7 +29,7 @@ It is designed to be modular and easily adaptable for various automation tasks i
 To install the package, use pip with the git repository URL:
 
 ```bash
-pip install git+https://github.com/Vendox-Automation/dictionary
+pip install git+https://github.com/Vendox-Automation/library
 ```
 
 ## Prerequisites
