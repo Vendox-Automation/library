@@ -38,4 +38,5 @@ __all__ = [
     "CaptchaRecognizer",
     "recognize_captcha",
     "Scheduler",
+    "Logger",
 ]
