@@ -277,8 +277,6 @@ class Scraper:
         """
         if isinstance(xpath, list):
             for path in xpath:
-                # Using a slightly shorter timeout (e.g., 2s) per item so the script 
-                # doesn't stall for 10 seconds on every failing alternative.
                 btn = self.find_btn(path, timeout=2)
                 if btn:
                     self.click_btn(btn, use_js=use_js)
