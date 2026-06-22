@@ -275,6 +275,17 @@ class Scraper:
             timeout (int): Seconds to wait.
             use_js (bool): Whether to use JS for the click.
         """
+        if isinstance(xpath, list):
+            for path in xpath:
+                # Using a slightly shorter timeout (e.g., 2s) per item so the script 
+                # doesn't stall for 10 seconds on every failing alternative.
+                btn = self.find_btn(path, timeout=2)
+                if btn:
+                    self.click_btn(btn, use_js=use_js)
+                    return True
+        logger.error(f"None of the XPaths in the list were clickable: {xpath}")
+        return False
+    
         btn = self.find_btn(xpath, timeout)
         if btn:
             self.click_btn(btn, use_js=use_js)
