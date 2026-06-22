@@ -285,7 +285,6 @@ class Scraper:
                     return True
             logger.error(f"None of the XPaths in the list were clickable: {xpath}")
             return False
-    
         btn = self.find_btn(xpath, timeout)
         if btn:
             self.click_btn(btn, use_js=use_js)
