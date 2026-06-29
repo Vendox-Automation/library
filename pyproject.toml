@@ -40,6 +40,8 @@ dev = [
     "pytest-mock",
     "black",
     "ruff",
+    "pillow",
+    "matplotlib",
 ]
  
 [tool.setuptools.packages.find]
