@@ -19,10 +19,10 @@
 
 The `dashboard_image` module turns a few numbers into a clean, mobile-friendly
 **PNG report image**. You give it a title and a list of "metrics" (for example:
-how many loans were approved today vs. the usual average), and it draws a header
-plus one coloured card per metric. Each card shows the metric name, how far it is
-above or below the average (a big coloured percentage with an arrow), the current
-vs. average values, and a small line chart (sparkline) of the recent trend.
+how a value today compares to its usual average), and it draws a header plus one
+coloured card per metric. Each card shows the metric name, how far it is above
+or below the average (a big coloured percentage with an arrow), the current vs.
+average values, and a small line chart (sparkline) of the recent trend.
 
 The image comes back in memory as a `BytesIO` PNG, so you can send it straight to
 Telegram, attach it to an email, or save it to disk — without writing any drawing
@@ -45,20 +45,20 @@ code yourself.
     from datetime import datetime
 
     metrics = [
-        {"name": "Approved", "current": 233, "average": 177.29, "difference_pct": 31.4},
+        {"name": "Orders", "current": 120, "average": 95, "difference_pct": 26.3},
     ]
 
     png = generate_dashboard_image(
-        topic_name="Loan Listing",
+        topic_name="Daily Report",
         report_datetime=datetime.now(),
         metrics=metrics,
-        platform_name="FastRinggit",
+        platform_name="MyPlatform",
     )
     ```
 
 4. **Use the PNG** (save or send):
     ```python
-    with open("loan_listing.png", "wb") as f:
+    with open("dashboard.png", "wb") as f:
         f.write(png.getvalue())
     ```
 
@@ -98,7 +98,7 @@ Each metric is a plain Python dictionary. One card is drawn per metric, in order
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | `str` | Card label, e.g. `"Approved"`. |
+| `name` | `str` | Card label, e.g. `"Orders"`. |
 | `current` | `float` | The current/latest value. |
 | `average` | `float` | The average/benchmark value. |
 | `difference_pct` | `float` | Percent difference vs. average. Its sign decides the colour (positive → green, negative → red, `0` → amber). |
@@ -136,7 +136,7 @@ Turn a title and a list of metrics into a ready-to-share PNG dashboard image.
   - `topic_name` (str): Report/topic name shown in the header. The header reads `"{platform_name} Alert - {topic_name}"`.
   - `report_datetime` (datetime | str): A `datetime` (preferred) or pre-formatted string shown under the title. Also used to auto-generate chart hour labels.
   - `metrics` (list[dict]): Non-empty list of metric dictionaries (see [The Metric Dictionary](#the-metric-dictionary)). One card is drawn per metric.
-  - `platform_name` (str): Brand/platform name shown in the header. Defaults to `"PayLaju"`.
+  - `platform_name` (str): Brand/platform name shown in the header. Defaults to `"PayLaju"` — pass your own name, e.g. `"MyPlatform"`.
 - **Returns:**
   - `BytesIO`: An in-memory PNG image, rewound to the start (`seek(0)`) and ready to read or send.
 - **Raises:**
@@ -197,11 +197,11 @@ transactions), set the metric's `status` field explicitly:
 
 ```python
 {
-    "name": "Rejected",
+    "name": "Errors",
     "current": 5,
     "average": 20,
     "difference_pct": -75.0,
-    "status": "above_average",  # fewer rejections is good -> show green
+    "status": "above_average",  # fewer errors is good -> show green
 }
 ```
 
@@ -227,7 +227,7 @@ from vdx_auto_utils.dashboard_image import generate_dashboard_image
 
 metrics = [
     {
-        "name": "Approved",
+        "name": "Orders",
         "current": 233,
         "average": 177.29,
         "difference_pct": 31.4,
@@ -235,13 +235,14 @@ metrics = [
         "trend_labels": ["02:00", "03:00", "04:00", "05:00", "06:00"],
     },
     {
-        "name": "Disbursed",
+        "name": "Revenue",
         "current": 103,
         "average": 81.14,
         "difference_pct": 26.9,
+        "unit": "RM",
     },
     {
-        "name": "Closed",
+        "name": "Returns",
         "current": 22,
         "average": 52.71,
         "difference_pct": -58.3,  # negative -> red card
@@ -249,13 +250,13 @@ metrics = [
 ]
 
 png = generate_dashboard_image(
-    topic_name="Loan Listing",
+    topic_name="Daily Report",
     report_datetime=datetime(2026, 6, 14, 6, 0),
     metrics=metrics,
-    platform_name="FastRinggit",
+    platform_name="MyPlatform",
 )
 
-with open("loan_listing.png", "wb") as f:
+with open("dashboard.png", "wb") as f:
     f.write(png.getvalue())
 ```
 
@@ -268,22 +269,38 @@ with open("loan_listing.png", "wb") as f:
 (`send_document` routes `.png` files to Telegram's `sendPhoto`):
 
 ```python
+from datetime import datetime
+
 from vdx_auto_utils import TelegramBot
 from vdx_auto_utils.dashboard_image import generate_dashboard_image
 
-png = generate_dashboard_image("Loan Listing", report_dt, metrics, "FastRinggit")
+metrics = [
+    {"name": "Orders", "current": 120, "average": 95, "difference_pct": 26.3},
+]
 
-with open("alert.png", "wb") as f:
+report_dt = datetime.now()
+
+png = generate_dashboard_image(
+    topic_name="Daily Report",
+    report_datetime=report_dt,
+    metrics=metrics,
+    platform_name="MyPlatform",
+)
+
+with open("dashboard.png", "wb") as f:
     f.write(png.getvalue())
 
-bot = TelegramBot("YOUR_BOT_TOKEN")
+bot = TelegramBot("YOUR_BOT_TOKEN_HERE")
 bot.send_document(
-    group_id="-1003684073969",
-    file_path="alert.png",
-    caption="Loan Listing Alert",
-    topic_id=8,
+    group_id="YOUR_CHAT_ID_HERE",
+    file_path="dashboard.png",
+    caption="Daily Report Alert",
+    topic_id=None,  # set to an int for forum topics, e.g. 8
 )
 ```
+
+Replace `YOUR_BOT_TOKEN_HERE` and `YOUR_CHAT_ID_HERE` with your own values from
+@BotFather and your Telegram group settings.
 
 ---
 
