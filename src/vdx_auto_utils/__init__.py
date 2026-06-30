@@ -18,6 +18,7 @@ from .uploader import GoogleSheetUploader
 from .webscraper import Scraper
 from .scheduler import Scheduler
 from .logger import Logger
+from .volare import Volare, DEFAULTS, REPORT_CONFIG
 
 __all__ = [
     "CSVFilter",
@@ -39,4 +40,7 @@ __all__ = [
     "recognize_captcha",
     "Scheduler",
     "Logger",
+    "Volare",
+    "DEFAULTS",
+    "REPORT_CONFIG",
 ]

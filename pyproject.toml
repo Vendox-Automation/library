@@ -22,7 +22,9 @@ dependencies = [
     "google-auth",
     "oauth2client",
     "selenium",
+    "webdriver-manager",
     "requests",
+    "httpx",
     "psycopg2",
     "pymysql",
     "pyotp",
@@ -32,6 +34,8 @@ dependencies = [
     "pytz",
     "apscheduler",
     "logger",
+    "openpyxl",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]
