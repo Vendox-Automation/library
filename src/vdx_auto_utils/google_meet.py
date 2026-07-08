@@ -54,6 +54,7 @@ def _auth_only(token):
 # OAuth
 # --------------------------------------------------------------------------- #
 
+
 def build_auth_url(
     client_id,
     redirect_uri,
@@ -136,6 +137,7 @@ def account_email(token):
 # Meet
 # --------------------------------------------------------------------------- #
 
+
 def create_meet_space(token, access_type="TRUSTED", entry_point="ALL"):
     """Create a Meet space (the "open a Meet room" call).
 
@@ -185,7 +187,9 @@ def find_meet_recording(token, space_name):
     r.raise_for_status()
     records = r.json().get("conferenceRecords", [])
     # Newest first (endTime desc); Google returns latest-first but sort defensively.
-    records.sort(key=lambda c: c.get("endTime") or c.get("startTime") or "", reverse=True)
+    records.sort(
+        key=lambda c: c.get("endTime") or c.get("startTime") or "", reverse=True
+    )
 
     for rec in records:
         rec_name = rec.get("name")
@@ -203,7 +207,11 @@ def find_meet_recording(token, space_name):
         for rcd in recordings:
             file_id = (rcd.get("driveDestination") or {}).get("file")
             # FILE_GENERATED means the Drive file is ready; if absent, accept any with a file.
-            if file_id and rcd.get("state", "FILE_GENERATED") in ("FILE_GENERATED", "ENDED", ""):
+            if file_id and rcd.get("state", "FILE_GENERATED") in (
+                "FILE_GENERATED",
+                "ENDED",
+                "",
+            ):
                 return {
                     "file_id": file_id,
                     "conference_record": rec_name,
@@ -229,6 +237,7 @@ def download_drive_file(token, file_id):
 # Calendar (compose with Meet for interview scheduling)
 # --------------------------------------------------------------------------- #
 
+
 def create_event(
     token,
     summary,
@@ -250,9 +259,13 @@ def create_event(
     Returns the created event dict (``id``, ``htmlLink``, ...).
     """
     zone = ZoneInfo(tz)
-    start = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M").replace(tzinfo=zone)
+    start = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M").replace(
+        tzinfo=zone
+    )
     end = start + timedelta(minutes=duration_minutes)
-    attendees = [{"email": e} for e in dict.fromkeys(filter(None, attendee_emails or []))]
+    attendees = [
+        {"email": e} for e in dict.fromkeys(filter(None, attendee_emails or []))
+    ]
     body = {
         "summary": summary,
         "description": description,
@@ -292,7 +305,9 @@ def get_free_slots(
     """
     zone = ZoneInfo(tz)
     start = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=zone)
-    end = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, tzinfo=zone)
+    end = datetime.strptime(end_date, "%Y-%m-%d").replace(
+        hour=23, minute=59, tzinfo=zone
+    )
     body = {
         "timeMin": start.isoformat(),
         "timeMax": end.isoformat(),
@@ -311,8 +326,12 @@ def get_free_slots(
     for b in r.json().get("calendars", {}).get("primary", {}).get("busy", []):
         busy.append(
             (
-                datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(zone),
-                datetime.fromisoformat(b["end"].replace("Z", "+00:00")).astimezone(zone),
+                datetime.fromisoformat(b["start"].replace("Z", "+00:00")).astimezone(
+                    zone
+                ),
+                datetime.fromisoformat(b["end"].replace("Z", "+00:00")).astimezone(
+                    zone
+                ),
             )
         )
 
@@ -344,6 +363,7 @@ def get_free_slots(
 # Convenience client — bind app credentials + a token source once
 # --------------------------------------------------------------------------- #
 
+
 class MeetClient:
     """Bind app credentials and a token source so calls don't repeat plumbing.
 
@@ -358,7 +378,9 @@ class MeetClient:
     Provide exactly one of ``token`` / ``token_provider``.
     """
 
-    def __init__(self, client_id, client_secret, token=None, token_provider=None, tz=DEFAULT_TZ):
+    def __init__(
+        self, client_id, client_secret, token=None, token_provider=None, tz=DEFAULT_TZ
+    ):
         if bool(token) == bool(token_provider):
             raise ValueError("Provide exactly one of `token` or `token_provider`.")
         self.client_id = client_id
@@ -396,7 +418,9 @@ class MeetClient:
     # Calendar
     def create_event(self, summary, date, start_time, duration_minutes, **kw):
         kw.setdefault("tz", self.tz)
-        return create_event(self._tok(), summary, date, start_time, duration_minutes, **kw)
+        return create_event(
+            self._tok(), summary, date, start_time, duration_minutes, **kw
+        )
 
     def free_slots(self, start_date, end_date, **kw):
         kw.setdefault("tz", self.tz)
