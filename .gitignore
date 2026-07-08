@@ -1,0 +1,25 @@
+# Volare business / PII config — keep out of source control.
+# The committed *.example.json template is explicitly un-ignored below.
+volare_config.json
+!volare_config.example.json
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs produced at runtime
+Logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/

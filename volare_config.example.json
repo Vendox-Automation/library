@@ -1,0 +1,50 @@
+{
+  "_comment": "Copy this file to volare_config.json (gitignored) and fill in your real values. The loader reads VOLARE_CONFIG (path) or ./volare_config.json. Values here deep-merge over the secret-free DEFAULTS in volare.py; Volare(config=...) overrides on top.",
+  "country_id": 108,
+  "staff": ["StaffA", "StaffB", "StaffC"],
+  "paths": {
+    "gdrive_subfolder": "Shared drives\\Your Drive\\Loan Listing",
+    "dg_export_base": "H:\\Shared drives\\Your Drive",
+    "loan_listing": "H:\\Shared drives\\Your Drive\\Loan Listing",
+    "assigned_export": "H:\\Shared drives\\Your Drive\\Assigned List",
+    "overdue_listing": "H:\\Shared drives\\Your Drive\\Overdue Loan Listing"
+  },
+  "broadcast": {
+    "dropdown_map": {
+      "0": "DPD 0",
+      "-1": "DPD -1",
+      "10-30": "DPD 10-30"
+    },
+    "voicefile_map": {
+      "0": "VoiceFileName_For_0",
+      "-1": "VoiceFileName_For_-1"
+    },
+    "caller_id_map": {
+      "0": "<CALLER ID DROPDOWN TEXT>",
+      "-1": "<CALLER ID DROPDOWN TEXT>",
+      "above_10": "<CALLER ID DROPDOWN TEXT>",
+      "10-30": "<CALLER ID DROPDOWN TEXT>"
+    },
+    "time_map": {
+      "-3": "11:00:00",
+      "0": "13:30:00",
+      "10-30": "18:00:00"
+    }
+  },
+  "predictive": {
+    "caller_id": "<CALLER ID DROPDOWN TEXT>",
+    "team_name": "COLLECTOR",
+    "existing_client": "Collection - New",
+    "dropdown_map": {
+      "StaffA": "StaffA",
+      "StaffB": "StaffB"
+    }
+  },
+  "download": {
+    "workstation_url": "https://your-portal.example.com/api/workstation/all-listing",
+    "arapay_weightage": 0.4
+  },
+  "report": {
+    "repayment_log_audit_from": "2026-05-25T16:00:00.000Z"
+  }
+}
