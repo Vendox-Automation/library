@@ -104,7 +104,7 @@ def _load_file_config():
             "Volare(config=...) or they will be empty.")
         return {}
     except (json.JSONDecodeError, OSError) as e:
-        logger.error(f"❌ Failed to read Volare config '{path}': {e}")
+        logger.error("❌ Failed to read Volare config '{path}': {e}")
         return {}
 
 
@@ -578,10 +578,10 @@ class Volare:
             logger.info("✅ API login successful.")
             return session
         except requests.RequestException as e:
-            logger.error(f"❌ HTTP error during API login: {e}")
+            logger.error("❌ HTTP error during API login: {e}")
             raise
         except Exception as e:
-            logger.error(f"❌ Unexpected error during API login: {e}")
+            logger.error("❌ Unexpected error during API login: {e}")
             raise
 
     def _api_login_with_retry(self, max_retries=3, delay=5):
@@ -644,7 +644,7 @@ class Volare:
             logger.info("✅ 'Mobile' dragged to selection box successfully.")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to drag and drop Mobile element: {e}")
+            logger.error("❌ Failed to drag and drop Mobile element: {e}")
             return False
 
     def _check_and_untick_checkbox(self, driver, checkbox_id, label_selector,
@@ -684,7 +684,7 @@ class Volare:
             r.raise_for_status()
             return r.json()
         except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Telegram Error: {e}")
+            logger.error("❌ Telegram Error: {e}")
             return None
 
     def _send_message(self, text):
@@ -796,7 +796,7 @@ class Volare:
                     logger.info(f"✅ Successfully completed {report_name}")
 
                 except InvalidSessionIdException as e:
-                    logger.error(f"Error during {report_name} (Attempt {attempt}): {e}")
+                    logger.error("Error during {report_name} (Attempt {attempt}): {e}")
                     logger.warning("⚠️ Browser session lost — reinitializing driver...")
                     driver = self._relogin_ui(headless)
                     if attempt >= max_retries:
@@ -805,7 +805,7 @@ class Volare:
                         logger.info(f"Retrying {report_name} in 5 seconds...")
                         time.sleep(5)
                 except Exception as e:
-                    logger.error(f"Error during {report_name} (Attempt {attempt}): {e}")
+                    logger.error("Error during {report_name} (Attempt {attempt}): {e}")
                     if attempt < max_retries:
                         logger.info(f"Retrying {report_name} in 5 seconds...")
                         time.sleep(5)
@@ -850,7 +850,7 @@ class Volare:
                 By.CSS_SELECTOR, "p.modal-error-description")
             error_text = err_desc.text.strip().lower()
             if any(k in error_text for k in ["incorrect", "error", "failed"]):
-                logger.error(f"❌ Upload rejected by system: {error_text}")
+                logger.error("❌ Upload rejected by system: {error_text}")
                 return False
 
             time.sleep(3)
@@ -863,7 +863,7 @@ class Volare:
             logger.info("➡️ Clicked 'Proceed to Import'")
             return True
         except Exception as e:
-            logger.error(f"❌ Exception during upload_file(): {e}")
+            logger.error("❌ Exception during upload_file(): {e}")
             return False
 
     def _bc_process_file_upload(self, driver, file_name):
@@ -918,7 +918,7 @@ class Volare:
             logger.error("❌ Import failed — some rows were rejected")
             return False
         except Exception as e:
-            logger.error(f"❌ Unexpected error in process_file_upload(): {e}")
+            logger.error("❌ Unexpected error in process_file_upload(): {e}")
             return False
 
     def _bc_assign_broadcast(self, driver, timeout=20):
@@ -971,7 +971,7 @@ class Volare:
             logger.info("✅ 'Submit To Predictive Dialer' button clicked.")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed during predictive assignment: {e}")
+            logger.error("❌ Failed during predictive assignment: {e}")
             return False
 
     def _bc_fill_predictive_modal(self, driver, listingtype, bc=None):
@@ -1021,7 +1021,7 @@ class Volare:
                 (By.XPATH, "//button[contains(text(), 'Go to Campaign Setting')]"))).click()
             return True
         except Exception as e:
-            logger.error(f"❌ Failed to fill predictive modal: {e}")
+            logger.error("❌ Failed to fill predictive modal: {e}")
             return False
 
     def _bc_configure_voicefiles(self, driver, listingtype, bc=None):
@@ -1278,7 +1278,7 @@ class Volare:
                 By.CSS_SELECTOR, "p.modal-error-description")
             error_text = err_desc.text.strip().lower()
             if any(k in error_text for k in ["incorrect", "error", "failed"]):
-                logger.error(f"❌ Upload rejected by system: {error_text}")
+                logger.error("❌ Upload rejected by system: {error_text}")
                 return False
 
             time.sleep(3)
@@ -1291,7 +1291,7 @@ class Volare:
             logger.info("➡️ Clicked 'Proceed to Import'")
             return True
         except Exception as e:
-            logger.error(f"❌ Exception during upload_f  ile(): {e}")
+            logger.error("❌ Exception during upload_f  ile(): {e}")
             return False
 
     def _pd_process_file_upload(self, driver, file_name):
@@ -1327,7 +1327,7 @@ class Volare:
             logger.error("❌ Import failed — some rows were rejected")
             return False
         except Exception as e:
-            logger.error(f"❌ Unexpected error in process_file_upload(): {e}")
+            logger.error("❌ Unexpected error in process_file_upload(): {e}")
             return False
 
     def _pd_click_select_all(self, driver):
@@ -1508,7 +1508,7 @@ class Volare:
                 logger.warning("⚠️ Download could not be verified or renamed within timeout.")
             return True
         except Exception as e:
-            logger.error(f"❌ Automation sequence failed: {e}")
+            logger.error("❌ Automation sequence failed: {e}")
             return False
 
     def _pd_assign_predictive(self, driver, timeout=60, skip_double_click=False,
@@ -1570,7 +1570,7 @@ class Volare:
             logger.info("✅ 'Submit To Predictive Dialer' button clicked.")
             return True
         except Exception as e:
-            logger.error(f"❌ Failed during predictive assignment: {e}")
+            logger.error("❌ Failed during predictive assignment: {e}")
             return False
 
     def _pd_fill_predictive_modal(self, driver, listingtype, campaign_name=None,
@@ -1712,7 +1712,7 @@ class Volare:
             self._pd_handle_success_modal(driver)
             logger.info("Collector configuration complete")
         except Exception as e:
-            logger.error(f"Error during configuration: {e}")
+            logger.error("Error during configuration: {e}")
 
     def _pd_handle_success_modal(self, driver):
         wait = WebDriverWait(driver, 10)
@@ -1757,7 +1757,7 @@ class Volare:
 
                 dropdown_text = self.cfg["predictive"]["dropdown_map"].get(listing_type)
                 if not dropdown_text:
-                    logger.error(f"❌ Listing type '{listing_type}' not found in map.")
+                    logger.error("❌ Listing type '{listing_type}' not found in map.")
                     return False, None
 
                 options = WebDriverWait(driver, 10).until(
@@ -1780,10 +1780,10 @@ class Volare:
 
                 logger.warning(f"⚠️ Attempt {attempt} failed with rejected rows.")
                 if attempt == max_attempts:
-                    logger.error(f"❌ Failed to upload {report_name} after {max_attempts} attempts.")
+                    logger.error("❌ Failed to upload {report_name} after {max_attempts} attempts.")
                     return False, None
             except Exception as e:
-                logger.error(f"❌ Error during upload for {report_name} (Attempt {attempt}): {e}")
+                logger.error("❌ Error during upload for {report_name} (Attempt {attempt}): {e}")
                 if attempt == max_attempts:
                     return False, None
                 time.sleep(5)
@@ -1842,7 +1842,7 @@ class Volare:
             logger.info("✅ Clicked 'Next' to load search results")
             return True
         except Exception as e:
-            logger.error(f"❌ navigate_existing_listing failed for '{listing_type}' (batch: {target_batch}): {e}")
+            logger.error("❌ navigate_existing_listing failed for '{listing_type}' (batch: {target_batch}): {e}")
             return False
 
     # ══════════════════════════════════════════════════════════════════════
@@ -1898,7 +1898,7 @@ class Volare:
                 if results and len(results) > 0:
                     downloaded_reports.append(name)
             except Exception as e:
-                logger.error(f"❌ Error processing {report_key}: {e}")
+                logger.error("❌ Error processing {report_key}: {e}")
             time.sleep(20)
 
         if downloaded_reports and notify:
@@ -1940,7 +1940,7 @@ class Volare:
             ext_dt = pd.to_datetime(df["Extended Due Date"], errors="coerce")
             df["Days Overdue"] = (today_dt - ext_dt).dt.days
         if "Days Overdue" not in df.columns:
-            logger.error(f"[overdue] 'Days Overdue' column not found. Available: {list(df.columns)}")
+            logger.error("[overdue] 'Days Overdue' column not found. Available: {list(df.columns)}")
             return None
         df["Days Overdue"] = pd.to_numeric(df["Days Overdue"], errors="coerce").fillna(0).astype(int)
 
@@ -1985,7 +1985,7 @@ class Volare:
             filtered.to_excel(main_file, index=False)
             logger.info(f"[overdue] Saved: {main_file}")
         except Exception as e:
-            logger.error(f"[overdue] Failed to save '{main_file}': {e}")
+            logger.error("[overdue] Failed to save '{main_file}': {e}")
 
         # 6) Optional per-Collector-Admin split:
         #    {today}_{bracket_name}_{admin}.xlsx  →  {today}_DPD_{label}_{admin}.xlsx
@@ -2061,7 +2061,7 @@ class Volare:
                                 except SessionExpiredError:
                                     raise
                                 except Exception as e:
-                                    logger.error(f"❌ Error on page {page_num} (Attempt {attempt}): {str(e)}")
+                                    logger.error("❌ Error on page {page_num} (Attempt {attempt}): {str(e)}")
                                     if attempt < retries:
                                         await asyncio.sleep(1)
                                         continue
@@ -2091,10 +2091,10 @@ class Volare:
                         session.cookies.update(new_session.cookies)
                         session.headers.update(new_session.headers)
                     else:
-                        logger.error(f"❌ Failed to refresh session for {name}. Aborting.")
+                        logger.error("❌ Failed to refresh session for {name}. Aborting.")
                         return []
                 else:
-                    logger.error(f"❌ Session expired again on second attempt for {name}. Aborting.")
+                    logger.error("❌ Session expired again on second attempt for {name}. Aborting.")
                     return []
 
         return results
@@ -2220,11 +2220,11 @@ class Volare:
                     success = True
                     break
                 except Exception as e:
-                    logger.error(f"[_fetch_workstation_data] Error at page {page} (Attempt {attempt}/{max_retries}): {e}")
+                    logger.error("[_fetch_workstation_data] Error at page {page} (Attempt {attempt}/{max_retries}): {e}")
                     if attempt < max_retries:
                         time.sleep(attempt * 2)
                     else:
-                        logger.error(f"[_fetch_workstation_data] Max retries reached for page {page}")
+                        logger.error("[_fetch_workstation_data] Max retries reached for page {page}")
 
             if not success or (page > 1 and not data_list):
                 break
@@ -2262,7 +2262,7 @@ class Volare:
         try:
             os.makedirs(folder_path, exist_ok=True)
         except Exception as e:
-            logger.error(f"[export_data] Failed to create folder '{folder_path}': {e}")
+            logger.error("[export_data] Failed to create folder '{folder_path}': {e}")
             raise
 
         export_mode = config.get("export_mode", "single")
@@ -2280,13 +2280,13 @@ class Volare:
                 df.to_excel(filepath, index=False)
                 logger.info(f"[single] Saved: {filepath}")
             except Exception as e:
-                logger.error(f"[single] Failed to save '{filepath}': {e}")
+                logger.error("[single] Failed to save '{filepath}': {e}")
             return filepath
 
     def _export_loan_brackets(self, df, folder_path, today_str, session):
         logger.info("[loan_brackets] Entering loan_brackets mode")
         if "Days Overdue" not in df.columns:
-            logger.error(f"[loan_brackets] 'Days Overdue' column not found. Available: {list(df.columns)}")
+            logger.error("[loan_brackets] 'Days Overdue' column not found. Available: {list(df.columns)}")
             return folder_path
 
         if "Extended Due Date" in df.columns:
@@ -2314,7 +2314,7 @@ class Volare:
 
             if bracket_name == "0":
                 if "New User" not in filtered_df.columns:
-                    logger.error(f"[loan_brackets] 'New User' column not found for bracket '0'.")
+                    logger.error("[loan_brackets] 'New User' column not found for bracket '0'.")
                     filepath = os.path.join(folder_path, f"{today_str}_0_others.xlsx")
                     filtered_df.to_excel(filepath, index=False)
                     continue
@@ -2337,7 +2337,7 @@ class Volare:
                         arapay_df.to_excel(filepath, index=False)
                         logger.info(f"[loan_brackets] Saved: {filepath}")
                     except Exception as e:
-                        logger.error(f"[loan_brackets] Failed to save '{filepath}': {e}")
+                        logger.error("[loan_brackets] Failed to save '{filepath}': {e}")
                 if not new_df.empty:
                     filepath = os.path.join(folder_path, f"{today_str}_0_new.xlsx")
                     logger.info(f"[loan_brackets] Writing {len(new_df)} rows -> {filepath}")
@@ -2345,7 +2345,7 @@ class Volare:
                         new_df.to_excel(filepath, index=False)
                         logger.info(f"[loan_brackets] Saved: {filepath}")
                     except Exception as e:
-                        logger.error(f"[loan_brackets] Failed to save '{filepath}': {e}")
+                        logger.error("[loan_brackets] Failed to save '{filepath}': {e}")
                 if not others_df.empty:
                     filepath = os.path.join(folder_path, f"{today_str}_0_others.xlsx")
                     logger.info(f"[loan_brackets] Writing {len(others_df)} rows -> {filepath}")
@@ -2353,13 +2353,13 @@ class Volare:
                         others_df.to_excel(filepath, index=False)
                         logger.info(f"[loan_brackets] Saved: {filepath}")
                     except Exception as e:
-                        logger.error(f"[loan_brackets] Failed to save '{filepath}': {e}")
+                        logger.error("[loan_brackets] Failed to save '{filepath}': {e}")
 
             elif bracket_name == "2_to_10":
                 if len(filtered_df) == 0:
                     logger.warning(f"[loan_brackets] No rows for bracket '{bracket_name}', skipping")
                 elif "Collector Admin" not in filtered_df.columns:
-                    logger.error(f"[loan_brackets] 'Collector Admin' column not found for bracket '{bracket_name}'")
+                    logger.error("[loan_brackets] 'Collector Admin' column not found for bracket '{bracket_name}'")
                     filepath = os.path.join(folder_path, f"{today_str}_{bracket_name}.xlsx")
                     filtered_df.to_excel(filepath, index=False)
                 else:
@@ -2370,7 +2370,7 @@ class Volare:
                             work_df.to_excel(work_copy_path, index=False)
                             logger.info(f"[loan_brackets] Saved workstation raw data -> {work_copy_path}")
                         except Exception as e:
-                            logger.error(f"[loan_brackets] Failed to save workstation raw data: {e}")
+                            logger.error("[loan_brackets] Failed to save workstation raw data: {e}")
 
                         logger.info(f"[loan_brackets] Joining {len(work_df)} workstation records for bracket '2_to_10'")
                         filtered_df["Loan ID"] = filtered_df["Loan ID"].astype(str)
@@ -2400,7 +2400,7 @@ class Volare:
                             filtered_df.to_excel(joined_filepath, index=False)
                             logger.info(f"[loan_brackets] Saved: {joined_filepath}")
                         except Exception as e:
-                            logger.error(f"[loan_brackets] Failed to save joined 2_to_10 dataset: {e}")
+                            logger.error("[loan_brackets] Failed to save joined 2_to_10 dataset: {e}")
 
                     self._export_split_by_admin(filtered_df, folder_path, today_str, bracket_name)
 
@@ -2408,7 +2408,7 @@ class Volare:
                 if len(filtered_df) == 0:
                     logger.warning(f"[loan_brackets] No rows for bracket '{bracket_name}', skipping")
                 elif "Collector Admin" not in filtered_df.columns:
-                    logger.error(f"[loan_brackets] 'Collector Admin' column not found for bracket '{bracket_name}'")
+                    logger.error("[loan_brackets] 'Collector Admin' column not found for bracket '{bracket_name}'")
                     filepath = os.path.join(folder_path, f"{today_str}_{bracket_name}.xlsx")
                     filtered_df.to_excel(filepath, index=False)
                 else:
@@ -2418,7 +2418,7 @@ class Volare:
                         filtered_df.to_excel(bracket_filepath, index=False)
                         logger.info(f"[loan_brackets] Saved: {bracket_filepath}")
                     except Exception as e:
-                        logger.error(f"[loan_brackets] Failed to save '{bracket_filepath}': {e}")
+                        logger.error("[loan_brackets] Failed to save '{bracket_filepath}': {e}")
                     self._export_split_by_admin(filtered_df, folder_path, today_str, bracket_name)
 
             else:
@@ -2431,7 +2431,7 @@ class Volare:
                         filtered_df.to_excel(filepath, index=False)
                         logger.info(f"[loan_brackets] Saved: {filepath}")
                     except Exception as e:
-                        logger.error(f"[loan_brackets] Failed to save '{filepath}': {e}")
+                        logger.error("[loan_brackets] Failed to save '{filepath}': {e}")
 
         full_filepath = os.path.join(folder_path, f"{today_str}_full.xlsx")
         logger.info(f"[loan_brackets] Writing full dataset ({len(df)} rows) -> {full_filepath}")
@@ -2439,7 +2439,7 @@ class Volare:
             df.to_excel(full_filepath, index=False)
             logger.info(f"[loan_brackets] Saved full dataset: {full_filepath}")
         except Exception as e:
-            logger.error(f"[loan_brackets] Failed to save full dataset '{full_filepath}': {e}")
+            logger.error("[loan_brackets] Failed to save full dataset '{full_filepath}': {e}")
         logger.info(f"[loan_brackets] Export complete. Folder: {folder_path}")
         return folder_path
 
@@ -2464,13 +2464,13 @@ class Volare:
                 file_count += 1
                 admin_count += 1
             except Exception as e:
-                logger.error(f"[loan_brackets] Failed to save '{filepath}': {e}")
+                logger.error("[loan_brackets] Failed to save '{filepath}': {e}")
         logger.info(f"[loan_brackets] Split bracket '{bracket_name}' into {file_count} files for {admin_count} Collector Admins")
 
     def _export_broadcast_dpd(self, df, folder_path, today_str):
         logger.info("[broadcast_dpd] Entering broadcast_dpd mode")
         if "Due Date" not in df.columns:
-            logger.error(f"[broadcast_dpd] 'Due Date' column not found. Available: {list(df.columns)}")
+            logger.error("[broadcast_dpd] 'Due Date' column not found. Available: {list(df.columns)}")
             return folder_path
 
         due_date_norm = pd.to_datetime(df["Due Date"], errors="coerce").dt.normalize()
@@ -2494,7 +2494,7 @@ class Volare:
                     filtered_df.to_excel(filepath, index=False)
                     logger.info(f"[broadcast_dpd] Saved: {filepath}")
                 except Exception as e:
-                    logger.error(f"[broadcast_dpd] Failed to save '{filepath}': {e}")
+                    logger.error("[broadcast_dpd] Failed to save '{filepath}': {e}")
 
         full_filepath = os.path.join(folder_path, f"{today_str}_Broadcast_full.xlsx")
         logger.info(f"[broadcast_dpd] Writing full dataset ({len(df)} rows) -> {full_filepath}")
@@ -2502,7 +2502,7 @@ class Volare:
             df.to_excel(full_filepath, index=False)
             logger.info(f"[broadcast_dpd] Saved full dataset: {full_filepath}")
         except Exception as e:
-            logger.error(f"[broadcast_dpd] Failed to save full dataset '{full_filepath}': {e}")
+            logger.error("[broadcast_dpd] Failed to save full dataset '{full_filepath}': {e}")
         logger.info(f"[broadcast_dpd] Export complete. Folder: {folder_path}")
         return folder_path
 
