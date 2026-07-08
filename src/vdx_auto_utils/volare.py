@@ -788,7 +788,9 @@ class Volare:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         try:
             r = requests.post(
-                url, data={"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+                url,
+                data={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+                timeout=10,
             )
             r.raise_for_status()
             return r.json()
