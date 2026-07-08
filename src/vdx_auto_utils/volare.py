@@ -18,6 +18,7 @@ Design notes:
   how the Volare system behaves. Do not "optimize" them away.
 - Self-contained: no imports from the old DG-* project folders.
 """
+
 import os
 import json
 import time
@@ -49,6 +50,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 load_dotenv()
 
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Logger (self-contained: daily file in ./Logs + console)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -63,7 +65,8 @@ def _build_logger():
         log_dir.mkdir(parents=True, exist_ok=True)
         fh = logging.FileHandler(
             log_dir / f"{datetime.now().strftime('%Y%m%d')}.log",
-            encoding="utf-8", mode="a",
+            encoding="utf-8",
+            mode="a",
         )
         fh.setFormatter(fmt)
         logger.addHandler(fh)
@@ -76,6 +79,7 @@ def _build_logger():
 
 
 logger = _build_logger()
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # External (untracked) business config
@@ -101,7 +105,8 @@ def _load_file_config():
         logger.warning(
             f"⚠️ Volare config file not found at '{path}'. Business values "
             "(caller IDs, staff, folder paths) must be supplied via "
-            "Volare(config=...) or they will be empty.")
+            "Volare(config=...) or they will be empty."
+        )
         return {}
     except (json.JSONDecodeError, OSError) as e:
         logger.error("❌ Failed to read Volare config '{path}': {e}")
@@ -199,43 +204,81 @@ def _get_plus_5_days():
 
 
 _LOAN_COL_MAPPING = {
-    "loan_code": "Loan ID", "extended": "Extended", "customer_id": "Customer ID",
-    "name": "Name", "ic_no": "IC/Passport", "phone_no": "Phone Number",
-    "member_source": "Member Source", "adv_source": "Apply Source",
-    "first_adv_source": "1st Adv Source", "app_source": "Apply From",
-    "bank_name": "Bank Name", "bank_account_name": "Bank Account Name",
-    "bank_account_number": "Bank Account Number", "is_new": "New User",
-    "first_disbursed_date": "First Disbursement Date", "period": "Period",
-    "tenure": "Tenure", "amount": "Loan Amount", "receivable_amount": "Receivable",
-    "service_fee": "Service Fee", "deposit_amount": "Deposit",
-    "repayment_count": "Repayment", "total_repayment": "Paid Amount",
-    "profit_loss": "Profit/Loss", "total_penalty": "Penalty Imposed",
-    "outstanding_balance": "Outstanding Balance", "closed_loan": "Total Closed Loan",
-    "overdue_days": "Days Overdue", "is_share_limit_display": "Share Limit",
-    "overlap_id": "Overlap Loan ID", "platform_name": "Platform",
-    "department_name": "Department Details", "main_admin_name": "Admin In Charge",
-    "co_admin_name": "Co Admin", "disbursed_method": "Disburse Method",
-    "juicy_score": "Juicy Score", "status_display": "Loan Application Status",
-    "updated_at": "Last Updated Date", "e_kyc_result_display": "Kenal Status",
-    "kyc_status_display": "KYC Status", "disbursed_at": "Disbursed Date",
-    "on_hold_from_export": "On Hold From", "on_hold_to_export": "On Hold To",
-    "due_date": "Due Date", "extend_count": "Extended Count", "closed_at": "Closed Date",
-    "extened_due_date": "Extended Due Date", "on_time": "On Time Repayment",
+    "loan_code": "Loan ID",
+    "extended": "Extended",
+    "customer_id": "Customer ID",
+    "name": "Name",
+    "ic_no": "IC/Passport",
+    "phone_no": "Phone Number",
+    "member_source": "Member Source",
+    "adv_source": "Apply Source",
+    "first_adv_source": "1st Adv Source",
+    "app_source": "Apply From",
+    "bank_name": "Bank Name",
+    "bank_account_name": "Bank Account Name",
+    "bank_account_number": "Bank Account Number",
+    "is_new": "New User",
+    "first_disbursed_date": "First Disbursement Date",
+    "period": "Period",
+    "tenure": "Tenure",
+    "amount": "Loan Amount",
+    "receivable_amount": "Receivable",
+    "service_fee": "Service Fee",
+    "deposit_amount": "Deposit",
+    "repayment_count": "Repayment",
+    "total_repayment": "Paid Amount",
+    "profit_loss": "Profit/Loss",
+    "total_penalty": "Penalty Imposed",
+    "outstanding_balance": "Outstanding Balance",
+    "closed_loan": "Total Closed Loan",
+    "overdue_days": "Days Overdue",
+    "is_share_limit_display": "Share Limit",
+    "overlap_id": "Overlap Loan ID",
+    "platform_name": "Platform",
+    "department_name": "Department Details",
+    "main_admin_name": "Admin In Charge",
+    "co_admin_name": "Co Admin",
+    "disbursed_method": "Disburse Method",
+    "juicy_score": "Juicy Score",
+    "status_display": "Loan Application Status",
+    "updated_at": "Last Updated Date",
+    "e_kyc_result_display": "Kenal Status",
+    "kyc_status_display": "KYC Status",
+    "disbursed_at": "Disbursed Date",
+    "on_hold_from_export": "On Hold From",
+    "on_hold_to_export": "On Hold To",
+    "due_date": "Due Date",
+    "extend_count": "Extended Count",
+    "closed_at": "Closed Date",
+    "extened_due_date": "Extended Due Date",
+    "on_time": "On Time Repayment",
     "collector_admin_name": "Collector Admin",
-    "auto_disbursed_status_display": "AD Status", "auto_disbursed_at": "AD Admin Date",
-    "auto_disbursed_remarks": "AD Remarks", "remarks": "Remarks",
-    "additional_remarks": "Additional Remarks", "reject_remarks": "Reject Remarks",
-    "reject_extra_remarks": "Reject Extra Remarks", "updated_by": "Updated by",
-    "is_foreigner_display": "Is Foreigner", "foreigner_job_title": "Foreigner Job Title",
-    "foreigner_salary": "Foreigner Salary", "foreigner_dob": "Foreigner DOB",
+    "auto_disbursed_status_display": "AD Status",
+    "auto_disbursed_at": "AD Admin Date",
+    "auto_disbursed_remarks": "AD Remarks",
+    "remarks": "Remarks",
+    "additional_remarks": "Additional Remarks",
+    "reject_remarks": "Reject Remarks",
+    "reject_extra_remarks": "Reject Extra Remarks",
+    "updated_by": "Updated by",
+    "is_foreigner_display": "Is Foreigner",
+    "foreigner_job_title": "Foreigner Job Title",
+    "foreigner_salary": "Foreigner Salary",
+    "foreigner_dob": "Foreigner DOB",
     "foreigner_country": "Foreigner Origin Country",
     "foreigner_visa_end_date": "Foreigner Visa End Date",
     "created_at": "Loan Created Date",
 }
 _LOAN_CLEAN_MAPPING = {
-    "Loan ID": "string", "Loan Amount": "numeric", "Days Overdue": "numeric",
-    "Juicy Score": "numeric", "IC/Passport": "string", "Disbursed Date": "date",
-    "Closed Date": "date", "Due Date": "date", "Loan Created Date": "date",
+    "Loan ID": "string",
+    "Loan Amount": "numeric",
+    "Days Overdue": "numeric",
+    "Juicy Score": "numeric",
+    "IC/Passport": "string",
+    "Disbursed Date": "date",
+    "Closed Date": "date",
+    "Due Date": "date",
+    "Loan Created Date": "date",
 }
 
 REPORT_CONFIG = {
@@ -244,7 +287,8 @@ REPORT_CONFIG = {
         "payload": {
             "due_from": "{last_60}T00:00:00.000Z",
             "due_to": "{today}T23:59:59.999Z",
-            "limit": 250, "status": 2,
+            "limit": 250,
+            "status": 2,
         },
         "filters": {"Loan Application Status": ["Disbursed", "Closed"]},
         "exclude_if_not_empty": ["On Hold To"],
@@ -258,7 +302,8 @@ REPORT_CONFIG = {
         "payload": {
             "due_from": "{tomorrow}T00:00:00.000Z",
             "due_to": "{plus_5_days}T23:59:59.999Z",
-            "limit": 500, "status": 2,
+            "limit": 500,
+            "status": 2,
         },
         "filters": {"Loan Application Status": ["Disbursed", "Closed"]},
         "exclude_if_not_empty": ["On Hold To"],
@@ -271,8 +316,7 @@ REPORT_CONFIG = {
     "repayment_log_audit": {
         "url_path": "/api/loan-repayment/log-audit",
         "payload": {
-            "updated_from": _REPORT_OVERRIDES.get(
-                "repayment_log_audit_from", "{last_60}T16:00:00.000Z"),
+            "updated_from": _REPORT_OVERRIDES.get("repayment_log_audit_from", "{last_60}T16:00:00.000Z"),
             "updated_to": "{today}T15:59:59.999Z",
             "limit": 1000,
         },
@@ -283,8 +327,10 @@ REPORT_CONFIG = {
             "payment_method": "Payment Method",
         },
         "col_clean_mapping": {
-            "Loan ID": "string", "Repayment Amount (RM)": "numeric",
-            "Repayment Date": "date", "Payment Method": "string",
+            "Loan ID": "string",
+            "Repayment Amount (RM)": "numeric",
+            "Repayment Date": "date",
+            "Payment Method": "string",
         },
     },
     "kyc_verify_list": {
@@ -295,11 +341,16 @@ REPORT_CONFIG = {
             "limit": 1000,
         },
         "col_mapping": {
-            "customer_id": "Customer ID", "name": "Customer Name",
-            "e_kyc_name": "E-KYC Customer Name", "ic_no": "IC/Passport",
-            "e_kyc_ic_no": "E-KYC IC/Passport", "mobile_no": "Mobile No.",
-            "country_display": "Country", "platform_name": "Platform",
-            "facebook_name": "Facebook Name", "facebook_email": "Facebook Email",
+            "customer_id": "Customer ID",
+            "name": "Customer Name",
+            "e_kyc_name": "E-KYC Customer Name",
+            "ic_no": "IC/Passport",
+            "e_kyc_ic_no": "E-KYC IC/Passport",
+            "mobile_no": "Mobile No.",
+            "country_display": "Country",
+            "platform_name": "Platform",
+            "facebook_name": "Facebook Name",
+            "facebook_email": "Facebook Email",
             "adv_source_name": "Adv Source",
             "emergency_contact_name_1": "Emergency Contact Name 1",
             "emergency_contact_relationship_1": "Relatiomship 1",
@@ -307,16 +358,25 @@ REPORT_CONFIG = {
             "emergency_contact_name_2": "Emergency Contact Name 2",
             "emergency_contact_relationship_2": "Relatiomship 2",
             "emergency_contact_contact_2": "Emergency Contact Number 2",
-            "created_at": "Created Date", "updated_at": "Updated Date",
-            "pending_at": "Pending Date", "status_display": "Status",
-            "e_kyc_result_display": "Kenal Status", "e_kyc_ref_id": "E KYC Ref ID",
+            "created_at": "Created Date",
+            "updated_at": "Updated Date",
+            "pending_at": "Pending Date",
+            "status_display": "Status",
+            "e_kyc_result_display": "Kenal Status",
+            "e_kyc_ref_id": "E KYC Ref ID",
             "last_loan_status_display": "Last Loan Status",
-            "approver_name": "Updated By", "creator_username": "Platforms",
+            "approver_name": "Updated By",
+            "creator_username": "Platforms",
         },
         "col_clean_mapping": {
-            "Customer ID": "string", "Customer Name": "string", "IC/Passport": "string",
-            "E-KYC IC/Passport": "string", "Created Date": "datetime",
-            "Updated Date": "datetime", "Pending Date": "datetime", "Status": "string",
+            "Customer ID": "string",
+            "Customer Name": "string",
+            "IC/Passport": "string",
+            "E-KYC IC/Passport": "string",
+            "Created Date": "datetime",
+            "Updated Date": "datetime",
+            "Pending Date": "datetime",
+            "Status": "string",
         },
     },
     "kyc_time_listing": {
@@ -327,18 +387,28 @@ REPORT_CONFIG = {
             "limit": 100,
         },
         "col_mapping": {
-            "created_at": "Created Date", "kyc_id": "KYC ID",
-            "status_display": "Status", "pending_time": "Pending Time",
-            "assigned_time": "Assigned Time", "in_progress_time": "In Progress Time",
-            "on_hold_time": "On Hold Time", "on_hold_remark_display": "On Hold Reason",
-            "total_time": "Total Time", "result_display": "Result",
+            "created_at": "Created Date",
+            "kyc_id": "KYC ID",
+            "status_display": "Status",
+            "pending_time": "Pending Time",
+            "assigned_time": "Assigned Time",
+            "in_progress_time": "In Progress Time",
+            "on_hold_time": "On Hold Time",
+            "on_hold_remark_display": "On Hold Reason",
+            "total_time": "Total Time",
+            "result_display": "Result",
             "admin_name": "Admin Name",
         },
         "col_clean_mapping": {
-            "Created Date": "datetime", "KYC ID": "string", "Status": "string",
-            "Pending Time": "duration", "Assigned Time": "duration",
-            "In Progress Time": "duration", "On Hold Time": "duration",
-            "Total Time": "duration", "Result": "string",
+            "Created Date": "datetime",
+            "KYC ID": "string",
+            "Status": "string",
+            "Pending Time": "duration",
+            "Assigned Time": "duration",
+            "In Progress Time": "duration",
+            "On Hold Time": "duration",
+            "Total Time": "duration",
+            "Result": "string",
         },
     },
 }
@@ -346,6 +416,7 @@ REPORT_CONFIG = {
 
 class SessionExpiredError(Exception):
     """Raised when the report API session has expired (HTTP 401)."""
+
     pass
 
 
@@ -368,7 +439,7 @@ DEFAULTS = {
     },
     "broadcast": {
         "listing_types": ["-3", "-2", "-1", "0", "10-30"],
-        "base_folder": None,                       # None → auto-resolve G:/H: gdrive
+        "base_folder": None,  # None → auto-resolve G:/H: gdrive
         "file_template": "{today}_DPD {listing_type}.xlsx",
         "max_retries": 3,
         "campaign_name_template": "{prefix} ({date})",
@@ -439,8 +510,8 @@ class Volare:
     def __init__(self, config=None):
         # Resolution order (later wins): DEFAULTS → JSON file → config arg.
         self.cfg = _deep_merge(_deep_merge(DEFAULTS, FILE_CONFIG), config or {})
-        self.driver = None            # shared Selenium UI session
-        self.session = None           # DuitGini report API session (requests)
+        self.driver = None  # shared Selenium UI session
+        self.session = None  # DuitGini report API session (requests)
         self._ui_user = None
         self._ui_pass = None
         self._api_name = None
@@ -451,8 +522,7 @@ class Volare:
     # ──────────────────────────────────────────────────────────────────────
     # 1) LOGIN
     # ──────────────────────────────────────────────────────────────────────
-    def login(self, username="", password="", secret="", headless=False,
-              ui=True, api=True):
+    def login(self, username="", password="", secret="", headless=False, ui=True, api=True):
         """
         Open ONE shared Selenium UI session (reused by run_broadcast +
         run_predictive) and prepare the report API session.
@@ -491,9 +561,7 @@ class Volare:
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
             options.add_experimental_option("useAutomationExtension", False)
 
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()), options=options
-        )
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         driver.maximize_window()
         driver.get(VOLARE_LOGIN_URL)
         wait = WebDriverWait(driver, 100)
@@ -501,8 +569,7 @@ class Volare:
         try:
             wait.until(EC.element_to_be_clickable((By.ID, "inputName"))).send_keys(username)
             wait.until(EC.element_to_be_clickable((By.ID, "inputPassword"))).send_keys(password)
-            wait.until(EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, "button.btn-block.warning.mt-2"))).click()
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button.btn-block.warning.mt-2"))).click()
             self._click_swal_ok_if_exists(driver)
             self._click_import_manager(driver)
             logger.info("✅ UI login attempted successfully.")
@@ -545,8 +612,10 @@ class Volare:
 
     def _api_step1(self, session):
         payload = {
-            "name": self._api_name, "password": self._api_pass,
-            "country_id": self.cfg["country_id"], "step": 1,
+            "name": self._api_name,
+            "password": self._api_pass,
+            "country_id": self.cfg["country_id"],
+            "step": 1,
         }
         r = session.post(LOGIN_URL, headers=API_HEADERS, json=payload)
         r.raise_for_status()
@@ -555,8 +624,13 @@ class Volare:
     def _api_step2(self, session, user_id):
         tac = self._api_generate_tac(self._api_secret)
         payload = {
-            "id": user_id, "isGoogle": 1, "country_id": self.cfg["country_id"],
-            "name": self._api_name, "password": self._api_pass, "step": 2, "tac": tac,
+            "id": user_id,
+            "isGoogle": 1,
+            "country_id": self.cfg["country_id"],
+            "name": self._api_name,
+            "password": self._api_pass,
+            "step": 2,
+            "tac": tac,
         }
         r = session.post(LOGIN_URL, headers=API_HEADERS, json=payload)
         r.raise_for_status()
@@ -603,7 +677,8 @@ class Volare:
     def _click_swal_ok_if_exists(self, driver, timeout=100):
         try:
             ok_btn = WebDriverWait(driver, timeout).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.swal2-confirm")))
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button.swal2-confirm"))
+            )
             ok_btn.click()
             logger.info("✅ SweetAlert OK clicked")
         except TimeoutException:
@@ -635,20 +710,14 @@ class Volare:
             actions = ActionChains(driver)
             source = wait.until(EC.visibility_of_element_located(SOURCE))
             target = wait.until(EC.visibility_of_element_located(TARGET))
-            (actions.click_and_hold(source)
-                    .pause(pause)
-                    .move_to_element(target)
-                    .pause(pause)
-                    .release()
-                    .perform())
+            (actions.click_and_hold(source).pause(pause).move_to_element(target).pause(pause).release().perform())
             logger.info("✅ 'Mobile' dragged to selection box successfully.")
             return True
         except Exception as e:
             logger.error("❌ Failed to drag and drop Mobile element: {e}")
             return False
 
-    def _check_and_untick_checkbox(self, driver, checkbox_id, label_selector,
-                                   checkbox_name, desired_state, timeout=10):
+    def _check_and_untick_checkbox(self, driver, checkbox_id, label_selector, checkbox_name, desired_state, timeout=10):
         target = "TICKED" if desired_state else "UNTICKED"
         try:
             wait = WebDriverWait(driver, timeout)
@@ -657,8 +726,7 @@ class Volare:
                 logger.info(f"ℹ️ '{checkbox_name}' already {target}. No action.")
                 return True
             logger.info(f"🔄 '{checkbox_name}' → set to {target}. Toggling...")
-            wait.until(EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, label_selector))).click()
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, label_selector))).click()
             time.sleep(0.1)
             if checkbox_input.is_selected() == desired_state:
                 logger.info(f"✅ State set to {target}.")
@@ -679,8 +747,7 @@ class Volare:
             return None
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         try:
-            r = requests.post(url, data={"chat_id": chat_id, "text": text,
-                                         "parse_mode": "HTML"})
+            r = requests.post(url, data={"chat_id": chat_id, "text": text, "parse_mode": "HTML"})
             r.raise_for_status()
             return r.json()
         except requests.exceptions.RequestException as e:
@@ -702,8 +769,7 @@ class Volare:
             candidate = Path(f"{drive}:\\") / subfolder
             if candidate.exists():
                 return str(candidate)
-        raise FileNotFoundError(
-            f"Google Drive not found on H: or G: — expected '{subfolder}'")
+        raise FileNotFoundError(f"Google Drive not found on H: or G: — expected '{subfolder}'")
 
     # ══════════════════════════════════════════════════════════════════════
     # 2) RUN BROADCAST
@@ -763,15 +829,17 @@ class Volare:
                         self._click_import_manager(driver)
 
                     dropdown_container = WebDriverWait(driver, 15).until(
-                        EC.visibility_of_element_located((By.CSS_SELECTOR, "div.filter-option")))
-                    dropdown_btn = dropdown_container.find_element(
-                        By.CSS_SELECTOR, "div.filter-option-inner-inner")
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, "div.filter-option"))
+                    )
+                    dropdown_btn = dropdown_container.find_element(By.CSS_SELECTOR, "div.filter-option-inner-inner")
                     dropdown_btn.click()
 
                     dropdown_target_text = dropdown_map.get(listing_type, f"DPD {listing_type}")
                     options = WebDriverWait(driver, 10).until(
                         EC.presence_of_all_elements_located(
-                            (By.CSS_SELECTOR, "ul.dropdown-menu.inner.show li a span.text")))
+                            (By.CSS_SELECTOR, "ul.dropdown-menu.inner.show li a span.text")
+                        )
+                    )
                     found = False
                     for option in options:
                         if option.text.strip() == dropdown_target_text:
@@ -829,25 +897,23 @@ class Volare:
     # ── Broadcast helpers ──
     def _bc_upload_file(self, driver, file_path):
         try:
-            file_input = WebDriverWait(driver, 120).until(
-                EC.presence_of_element_located((By.ID, "fileContent")))
+            file_input = WebDriverWait(driver, 120).until(EC.presence_of_element_located((By.ID, "fileContent")))
             file_input.send_keys(file_path)
             logger.info(f"📤 File path injected: {file_path}")
 
             WebDriverWait(driver, 120).until(
-                EC.text_to_be_present_in_element(
-                    (By.ID, "browsedFilename"), os.path.basename(file_path)))
+                EC.text_to_be_present_in_element((By.ID, "browsedFilename"), os.path.basename(file_path))
+            )
 
-            WebDriverWait(driver, 120).until(
-                EC.element_to_be_clickable((By.ID, "btnSubmit"))).click()
+            WebDriverWait(driver, 120).until(EC.element_to_be_clickable((By.ID, "btnSubmit"))).click()
             logger.info("📥 Clicked 'Upload & Proceed to Mapping'")
 
             file_preview_modal = WebDriverWait(driver, 120).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, "#filePreviewModal.show")))
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "#filePreviewModal.show"))
+            )
             logger.info("📄 File Preview Modal appeared")
 
-            err_desc = file_preview_modal.find_element(
-                By.CSS_SELECTOR, "p.modal-error-description")
+            err_desc = file_preview_modal.find_element(By.CSS_SELECTOR, "p.modal-error-description")
             error_text = err_desc.text.strip().lower()
             if any(k in error_text for k in ["incorrect", "error", "failed"]):
                 logger.error("❌ Upload rejected by system: {error_text}")
@@ -857,8 +923,7 @@ class Volare:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             proceed_btn = driver.find_element(By.ID, "filePreviewSubmit")
             driver.execute_script("arguments[0].scrollIntoView(true);", proceed_btn)
-            proceed_btn = WebDriverWait(driver, 20).until(
-                EC.element_to_be_clickable((By.ID, "filePreviewSubmit")))
+            proceed_btn = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, "filePreviewSubmit")))
             proceed_btn.click()
             logger.info("➡️ Clicked 'Proceed to Import'")
             return True
@@ -868,12 +933,10 @@ class Volare:
 
     def _bc_process_file_upload(self, driver, file_name):
         try:
-            WebDriverWait(driver, 120).until(
-                EC.visibility_of_element_located((By.ID, "bulk-notifiier-wrapper")))
+            WebDriverWait(driver, 120).until(EC.visibility_of_element_located((By.ID, "bulk-notifiier-wrapper")))
             logger.info("📦 Bulk Notifier appeared — import completed")
             try:
-                WebDriverWait(driver, 120).until(
-                    EC.invisibility_of_element_located((By.ID, "import-status-progress")))
+                WebDriverWait(driver, 120).until(EC.invisibility_of_element_located((By.ID, "import-status-progress")))
                 logger.info("✅ Upload progress finished")
             except Exception:
                 logger.warning("⚠️ Progress element still visible after timeout")
@@ -887,8 +950,7 @@ class Volare:
             found = False
             while elapsed < MAX_WAIT:
                 try:
-                    labels = driver.find_elements(
-                        By.CSS_SELECTOR, "label.card-title.font-weight-bold")
+                    labels = driver.find_elements(By.CSS_SELECTOR, "label.card-title.font-weight-bold")
                     if any(completed_text in lbl.text for lbl in labels):
                         found = True
                         break
@@ -903,10 +965,12 @@ class Volare:
                 raise TimeoutException(f"Timed out waiting for: {completed_text}")
             logger.info(f"✅ Upload completed for file: {completed_text}")
 
-            success_count = int(driver.find_element(
-                By.CSS_SELECTOR, "#bulk-notifier-completed span.text-success").text.strip())
-            fail_count = int(driver.find_element(
-                By.CSS_SELECTOR, "#bulk-notifier-completed span.text-danger").text.strip())
+            success_count = int(
+                driver.find_element(By.CSS_SELECTOR, "#bulk-notifier-completed span.text-success").text.strip()
+            )
+            fail_count = int(
+                driver.find_element(By.CSS_SELECTOR, "#bulk-notifier-completed span.text-danger").text.strip()
+            )
             logger.info(f"📊 Import Status → Success: {success_count}, Fail: {fail_count}")
 
             if success_count > 0 and fail_count == 0:
@@ -933,14 +997,12 @@ class Volare:
         try:
             try:
                 logger.info("🔄 Attempting to dismiss broadcast notification...")
-                WebDriverWait(driver, 20).until(
-                    EC.element_to_be_clickable((By.ID, CLOSE_BUTTON_ID))).click()
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, CLOSE_BUTTON_ID))).click()
                 logger.info("✅ Notification dismissed.")
             except Exception:
                 logger.info("ℹ️ Notification not found. Continuing.")
 
-            header_checkbox = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+            header_checkbox = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
             header_checkbox.click()
             logger.info("✅ Header 'Select all' checkbox clicked.")
             time.sleep(5)
@@ -950,16 +1012,26 @@ class Volare:
             logger.info("✅ Mobile successfully dragged to the selected list.")
 
             self._check_and_untick_checkbox(
-                driver, DNC_CHECKBOX_ID, f"label[for='{DNC_CHECKBOX_ID}']",
-                "Do Not Call", False, click_timeout)
+                driver, DNC_CHECKBOX_ID, f"label[for='{DNC_CHECKBOX_ID}']", "Do Not Call", False, click_timeout
+            )
             time.sleep(3)
             driver.execute_script("window.scrollBy(0, 300);")
             self._check_and_untick_checkbox(
-                driver, RIGHT_PARTY_CHECKBOX_ID, f"label[for='{RIGHT_PARTY_CHECKBOX_ID}']",
-                "Right Party", False, click_timeout)
+                driver,
+                RIGHT_PARTY_CHECKBOX_ID,
+                f"label[for='{RIGHT_PARTY_CHECKBOX_ID}']",
+                "Right Party",
+                False,
+                click_timeout,
+            )
             self._check_and_untick_checkbox(
-                driver, EXCLUDE_PRODUCT_CHECKBOX_ID, f"label[for='{EXCLUDE_PRODUCT_CHECKBOX_ID}']",
-                "Exclude Product", True, click_timeout)
+                driver,
+                EXCLUDE_PRODUCT_CHECKBOX_ID,
+                f"label[for='{EXCLUDE_PRODUCT_CHECKBOX_ID}']",
+                "Exclude Product",
+                True,
+                click_timeout,
+            )
             logger.info("✅ All specified checkboxes handled.")
 
             wait.until(EC.element_to_be_clickable((By.ID, FETCH_RECORD_BUTTON_ID))).click()
@@ -1003,22 +1075,20 @@ class Volare:
                 raise ValueError(f"No broadcast time defined for listing type: {listingtype}")
             time_str = time_map[listingtype]
             today = datetime.now().date()
-            campaign_datetime = datetime.combine(
-                today, datetime.strptime(time_str, "%H:%M:%S").time())
+            campaign_datetime = datetime.combine(today, datetime.strptime(time_str, "%H:%M:%S").time())
             datetime_str = campaign_datetime.strftime("%d/%m/%Y %H:%M:%S")
 
             calendar_input = driver.find_element(By.CSS_SELECTOR, "#date-broadcast-schedule input")
             calendar_input.clear()
             calendar_input.send_keys(datetime_str)
             calendar_input.send_keys(Keys.ENTER)
-            driver.execute_script(
-                "arguments[0].dispatchEvent(new Event('change'));", calendar_input)
+            driver.execute_script("arguments[0].dispatchEvent(new Event('change'));", calendar_input)
             logger.info(f"⏰ Scheduled campaign for: {datetime_str}")
 
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, "btn-predictive-proceed-creation"))).click()
-            wait.until(EC.element_to_be_clickable(
-                (By.XPATH, "//button[contains(text(), 'Go to Campaign Setting')]"))).click()
+            wait.until(EC.element_to_be_clickable((By.ID, "btn-predictive-proceed-creation"))).click()
+            wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Go to Campaign Setting')]"))
+            ).click()
             return True
         except Exception as e:
             logger.error("❌ Failed to fill predictive modal: {e}")
@@ -1029,9 +1099,11 @@ class Volare:
         wait = WebDriverWait(driver, 60)
         time.sleep(30)
         logger.info("⏳ Waiting for voice file configuration page...")
-        wait.until(EC.visibility_of_element_located((
-            By.XPATH,
-            "//span[contains(@class, 'dx-datagrid-search-text') and starts-with(text(), 'CP')]")))
+        wait.until(
+            EC.visibility_of_element_located(
+                (By.XPATH, "//span[contains(@class, 'dx-datagrid-search-text') and starts-with(text(), 'CP')]")
+            )
+        )
 
         mapped_name = bc["voicefile_map"].get(listingtype, listingtype)
         filename = f"{mapped_name}.mp3"
@@ -1049,24 +1121,27 @@ class Volare:
         logger.info("💾 Clicked Update button.")
         self._send_message(f"Voice file used: {filename}")
 
-        wait.until(EC.element_to_be_clickable((
-            By.XPATH,
-            "//button[contains(@class, 'swal2-confirm') and text()='Yes, update!']"))).click()
+        wait.until(
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(@class, 'swal2-confirm') and text()='Yes, update!']")
+            )
+        ).click()
         logger.info("🚀 Confirmation clicked. Update complete.")
         return True
 
     def _bc_handle_success_modal(self, driver):
         wait = WebDriverWait(driver, 10)
         try:
-            wait.until(EC.visibility_of_element_located(
-                (By.XPATH, "//h2[@id='swal2-title' and text()='Successfully Updated!']")))
+            wait.until(
+                EC.visibility_of_element_located(
+                    (By.XPATH, "//h2[@id='swal2-title' and text()='Successfully Updated!']")
+                )
+            )
             campaign_element = driver.find_element(By.XPATH, "//div[@id='swal2-content']/p[2]")
             campaign_name = campaign_element.text
             logger.info(f"Update Confirmed for: {campaign_name}")
             self._send_message(f"Campaign ID: {campaign_name}")
-            driver.find_element(
-                By.XPATH,
-                "//button[contains(@class, 'swal2-confirm') and text()='OK']").click()
+            driver.find_element(By.XPATH, "//button[contains(@class, 'swal2-confirm') and text()='OK']").click()
             return campaign_name
         except Exception as e:
             logger.warning(f"Error handling success modal: {e}")
@@ -1168,13 +1243,11 @@ class Volare:
             success, _ = self._pd_handle_listing_upload(driver, listing_type, file_path)
             if success:
                 time.sleep(15)
-                WebDriverWait(driver, 20).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
                 time.sleep(2)
                 logger.info("✅ Header checkbox toggled.")
                 self._pd_assign_predictive(driver, 20, skip_double_click=True, include_ptp=True)
-                self._pd_fill_predictive_modal(driver, listing_type,
-                                               campaign_prefix=wf["campaign_prefix"])
+                self._pd_fill_predictive_modal(driver, listing_type, campaign_prefix=wf["campaign_prefix"])
                 self._pd_configure_collector(driver, listing_type)
                 self._pd_reset_page_for_next(driver)
         logger.info("✅ Workflow 2 (Configure Collector) completed.")
@@ -1195,13 +1268,11 @@ class Volare:
             success, _ = self._pd_handle_listing_upload(driver, listing_type, file_path)
             if success:
                 time.sleep(15)
-                WebDriverWait(driver, 20).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
                 time.sleep(2)
                 logger.info("✅ Header checkbox toggled.")
                 self._pd_assign_predictive(driver, 20, skip_double_click=True, include_ptp=False)
-                self._pd_fill_predictive_modal(driver, listing_type,
-                                               campaign_prefix=wf["campaign_prefix"])
+                self._pd_fill_predictive_modal(driver, listing_type, campaign_prefix=wf["campaign_prefix"])
                 self._pd_configure_collector(driver, listing_type)
                 self._pd_reset_page_for_next(driver)
         logger.info("✅ Workflow 2 DPD 10-30 (Configure Collector) completed.")
@@ -1223,15 +1294,15 @@ class Volare:
             if success:
                 self._pd_update_case(driver, timeout=60, listing_type=listing_type)
                 time.sleep(15)
-                WebDriverWait(driver, 20).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
                 self._pd_assign_predictive(driver, 20)
-                self._pd_fill_predictive_modal(driver, listing_type,
-                                               campaign_prefix=wf["campaign_prefix"])
+                self._pd_fill_predictive_modal(driver, listing_type, campaign_prefix=wf["campaign_prefix"])
                 self._pd_configure_collector(driver, listing_type)
                 self._pd_reset_page_for_next(driver)
-        logger.info(f"✅ Workflow 3 (Full Flow) completed. "
-                    f"[file_template={wf['file_template']}, prefix={wf['campaign_prefix']}]")
+        logger.info(
+            f"✅ Workflow 3 (Full Flow) completed. "
+            f"[file_template={wf['file_template']}, prefix={wf['campaign_prefix']}]"
+        )
 
     def _pd_workflow_existing_listing(self, listing_types, wf, run_number=1):
         driver = self.driver
@@ -1242,13 +1313,11 @@ class Volare:
             success = self._pd_navigate_existing_listing(driver, listing_type)
             if success:
                 time.sleep(15)
-                WebDriverWait(driver, 20).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
                 self._pd_assign_predictive(driver, 20, skip_double_click=True, include_ptp=False)
                 today_date = datetime.now().strftime("%d/%m/%Y")
                 suffix = "" if run_number == 1 else f" {run_number}"
-                campaign_name = wf["campaign_template"].format(
-                    staff=listing_type, date=today_date, suffix=suffix)
+                campaign_name = wf["campaign_template"].format(staff=listing_type, date=today_date, suffix=suffix)
                 self._pd_fill_predictive_modal(driver, listing_type, campaign_name=campaign_name)
                 self._pd_configure_collector(driver, listing_type)
                 self._pd_reset_page_for_next(driver)
@@ -1257,25 +1326,23 @@ class Volare:
     # ── Predictive helpers ──
     def _pd_upload_file(self, driver, file_path):
         try:
-            file_input = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "fileContent")))
+            file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "fileContent")))
             file_input.send_keys(file_path)
             logger.info(f"📤 File path injected: {file_path}")
 
             WebDriverWait(driver, 10).until(
-                EC.text_to_be_present_in_element(
-                    (By.ID, "browsedFilename"), os.path.basename(file_path)))
+                EC.text_to_be_present_in_element((By.ID, "browsedFilename"), os.path.basename(file_path))
+            )
 
-            WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.ID, "btnSubmit"))).click()
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, "btnSubmit"))).click()
             logger.info("📥 Clicked 'Upload & Proceed to Mapping'")
 
             file_preview_modal = WebDriverWait(driver, 12).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, "#filePreviewModal.show")))
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "#filePreviewModal.show"))
+            )
             logger.info("📄 File Preview Modal appeared")
 
-            err_desc = file_preview_modal.find_element(
-                By.CSS_SELECTOR, "p.modal-error-description")
+            err_desc = file_preview_modal.find_element(By.CSS_SELECTOR, "p.modal-error-description")
             error_text = err_desc.text.strip().lower()
             if any(k in error_text for k in ["incorrect", "error", "failed"]):
                 logger.error("❌ Upload rejected by system: {error_text}")
@@ -1285,8 +1352,7 @@ class Volare:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             proceed_btn = driver.find_element(By.ID, "filePreviewSubmit")
             driver.execute_script("arguments[0].scrollIntoView(true);", proceed_btn)
-            proceed_btn = WebDriverWait(driver, 20).until(
-                EC.element_to_be_clickable((By.ID, "filePreviewSubmit")))
+            proceed_btn = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.ID, "filePreviewSubmit")))
             proceed_btn.click()
             logger.info("➡️ Clicked 'Proceed to Import'")
             return True
@@ -1296,26 +1362,26 @@ class Volare:
 
     def _pd_process_file_upload(self, driver, file_name):
         try:
-            WebDriverWait(driver, 30).until(
-                EC.visibility_of_element_located((By.ID, "bulk-notifiier-wrapper")))
+            WebDriverWait(driver, 30).until(EC.visibility_of_element_located((By.ID, "bulk-notifiier-wrapper")))
             logger.info("📦 Bulk Notifier appeared — import completed")
             try:
-                WebDriverWait(driver, 120).until(
-                    EC.invisibility_of_element_located((By.ID, "import-status-progress")))
+                WebDriverWait(driver, 120).until(EC.invisibility_of_element_located((By.ID, "import-status-progress")))
                 logger.info("✅ Upload progress finished")
             except Exception:
                 logger.warning("⚠️ Progress element still visible after timeout")
 
             completed_text = f"Completed sending import batch {file_name}"
             WebDriverWait(driver, 600).until(
-                EC.text_to_be_present_in_element(
-                    (By.CSS_SELECTOR, "label.card-title.font-weight-bold"), completed_text))
+                EC.text_to_be_present_in_element((By.CSS_SELECTOR, "label.card-title.font-weight-bold"), completed_text)
+            )
             logger.info(f"✅ Upload completed for file: {completed_text}")
 
-            success_count = int(driver.find_element(
-                By.CSS_SELECTOR, "#bulk-notifier-completed span.text-success").text.strip())
-            fail_count = int(driver.find_element(
-                By.CSS_SELECTOR, "#bulk-notifier-completed span.text-danger").text.strip())
+            success_count = int(
+                driver.find_element(By.CSS_SELECTOR, "#bulk-notifier-completed span.text-success").text.strip()
+            )
+            fail_count = int(
+                driver.find_element(By.CSS_SELECTOR, "#bulk-notifier-completed span.text-danger").text.strip()
+            )
             logger.info(f"📊 Import Status → Success: {success_count}, Fail: {fail_count}")
 
             if success_count > 0 and fail_count == 0:
@@ -1381,8 +1447,7 @@ class Volare:
             wait.until(EC.element_to_be_clickable((By.XPATH, SUMMARY_HEADER_XPATH)))
             logger.info("✅ Import Batch: Summary page fully loaded and clickable")
 
-            header_checkbox = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+            header_checkbox = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
             header_checkbox.click()
             logger.info("✅ Header 'Select all' checkbox clicked")
             time.sleep(1)
@@ -1395,15 +1460,14 @@ class Volare:
             logger.info("✅ Update assignment block made visible.")
 
             WebDriverWait(driver, 60).until(
-                EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "label[for='chk-search-auto-assign']"))).click()
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "label[for='chk-search-auto-assign']"))
+            ).click()
             print("Checkbox label clicked!")
 
             wait.until(EC.element_to_be_clickable((By.ID, ASSIGN_TYPE_RADIO_ID))).click()
             logger.info("✅ 'Assign Type Collector' radio selected.")
 
-            wait.until(EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, TEAM_DROPDOWN_BUTTON_SELECTOR))).click()
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, TEAM_DROPDOWN_BUTTON_SELECTOR))).click()
             logger.info("✅ Collector team dropdown opened.")
             wait.until(EC.element_to_be_clickable((By.XPATH, TEAM_OPTION_XPATH))).click()
             logger.info("✅ 'Collector' selected.")
@@ -1411,19 +1475,21 @@ class Volare:
             try:
                 logger.info("🔄 Attempting to dismiss broadcast notification...")
                 WebDriverWait(driver, CLOSE_NOTIFICATION_TIMEOUT).until(
-                    EC.element_to_be_clickable((By.ID, CLOSE_BUTTON_ID))).click()
+                    EC.element_to_be_clickable((By.ID, CLOSE_BUTTON_ID))
+                ).click()
                 logger.info("✅ Notification dismissed.")
             except Exception:
                 logger.info("ℹ️ Notification not found. Continuing.")
 
             logger.info("🔄 Attempting to select all collectors...")
-            wait.until(EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, DROPDOWN_BUTTON_SELECTOR))).click()
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, DROPDOWN_BUTTON_SELECTOR))).click()
             logger.info("✅ Collector dropdown opened.")
             time.sleep(10)
             collector_name = listing_type.upper()
             logger.info(f"🔄 Selecting collector: {collector_name}")
-            xpath_selector = f"//a[contains(@class, 'collector-reassign-option')]//span[@class='text' and text()='{collector_name}']"
+            xpath_selector = (
+                f"//a[contains(@class, 'collector-reassign-option')]//span[@class='text' and text()='{collector_name}']"
+            )
             wait.until(EC.element_to_be_clickable((By.XPATH, xpath_selector))).click()
             logger.info(f"✅ Collector '{collector_name}' selected.")
             time.sleep(5)
@@ -1439,34 +1505,29 @@ class Volare:
             logger.info("5s wait done, clicking button...")
 
             WebDriverWait(driver, 60).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//button[contains(text(), 'Assign / Reassign')]"))).click()
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Assign / Reassign')]"))
+            ).click()
             print("Assign / Reassign button clicked!")
             time.sleep(20)
 
             logger.info("🔄 Waiting for grid loading overlay to disappear...")
             try:
-                WebDriverWait(driver, 120).until(
-                    EC.invisibility_of_element_located((By.CLASS_NAME, "grdLoading")))
+                WebDriverWait(driver, 120).until(EC.invisibility_of_element_located((By.CLASS_NAME, "grdLoading")))
                 logger.info("✅ Grid loading overlay gone.")
             except TimeoutException:
                 logger.warning("⚠️ grdLoading still visible after 60s — proceeding anyway.")
 
             logger.info("🔄 Unticking and re-ticking 'Select all' checkbox...")
-            header_checkbox = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+            header_checkbox = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
             header_checkbox.click()
             time.sleep(2)
             header_checkbox.click()
             logger.info("✅ Header checkbox toggled.")
 
             daily_date = datetime.now().strftime("%Y-%m-%d")
-            download_folder = _resolve_path(
-                os.path.join(self.cfg["predictive"]["assigned_export_path"], daily_date))
+            download_folder = _resolve_path(os.path.join(self.cfg["predictive"]["assigned_export_path"], daily_date))
             os.makedirs(download_folder, exist_ok=True)
-            driver.execute_cdp_cmd(
-                "Page.setDownloadBehavior",
-                {"behavior": "allow", "downloadPath": download_folder})
+            driver.execute_cdp_cmd("Page.setDownloadBehavior", {"behavior": "allow", "downloadPath": download_folder})
             logger.info(f"📂 Download path set to: {download_folder}")
 
             wait.until(EC.element_to_be_clickable((By.ID, "vue_export_button"))).click()
@@ -1479,19 +1540,17 @@ class Volare:
             wait_time = 0
             new_filename = f"{daily_date}_{listing_type}_assigned.xlsx"
             new_path = os.path.join(download_folder, new_filename)
-            existing_files = set(
-                f for f in os.listdir(download_folder) if f.endswith(".xlsx"))
+            existing_files = set(f for f in os.listdir(download_folder) if f.endswith(".xlsx"))
 
             while wait_time < max_wait:
                 temp_files = [f for f in os.listdir(download_folder) if f.endswith(".crdownload")]
                 new_files = [
-                    f for f in os.listdir(download_folder)
+                    f
+                    for f in os.listdir(download_folder)
                     if f.endswith(".xlsx") and f not in existing_files and f != new_filename
                 ]
                 if new_files and not temp_files:
-                    new_files.sort(
-                        key=lambda x: os.path.getmtime(os.path.join(download_folder, x)),
-                        reverse=True)
+                    new_files.sort(key=lambda x: os.path.getmtime(os.path.join(download_folder, x)), reverse=True)
                     latest_file = os.path.join(download_folder, new_files[0])
                     try:
                         if os.path.exists(new_path):
@@ -1511,8 +1570,7 @@ class Volare:
             logger.error("❌ Automation sequence failed: {e}")
             return False
 
-    def _pd_assign_predictive(self, driver, timeout=60, skip_double_click=False,
-                              include_ptp=False):
+    def _pd_assign_predictive(self, driver, timeout=60, skip_double_click=False, include_ptp=False):
         FETCH_RECORD_BUTTON_ID = "btn-predictive-fetch-record"
         SUBMIT_BUTTON_ID = "btn-predictive-submit-record"
         DNC_CHECKBOX_ID = "chk-predictive-donotcall-contact"
@@ -1532,8 +1590,7 @@ class Volare:
             self._pd_filter_status_code(driver)
             self._pd_untick_filter_options(driver, exclude_ptp=not include_ptp)
 
-            header_checkbox = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
+            header_checkbox = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, HEADER_CHECKBOX_SELECTOR)))
             header_checkbox.click()
             logger.info("✅ Header 'Select all' checkbox clicked.")
             time.sleep(5)
@@ -1547,20 +1604,29 @@ class Volare:
             logger.info("✅ Mobile successfully dragged to the selected list.")
 
             self._check_and_untick_checkbox(
-                driver, DNC_CHECKBOX_ID, f"label[for='{DNC_CHECKBOX_ID}']",
-                "Do Not Call", False, click_timeout)
+                driver, DNC_CHECKBOX_ID, f"label[for='{DNC_CHECKBOX_ID}']", "Do Not Call", False, click_timeout
+            )
             self._check_and_untick_checkbox(
-                driver, RIGHT_PARTY_CHECKBOX_ID, f"label[for='{RIGHT_PARTY_CHECKBOX_ID}']",
-                "Right Party", False, click_timeout)
+                driver,
+                RIGHT_PARTY_CHECKBOX_ID,
+                f"label[for='{RIGHT_PARTY_CHECKBOX_ID}']",
+                "Right Party",
+                False,
+                click_timeout,
+            )
             self._check_and_untick_checkbox(
-                driver, EXCLUDE_PRODUCT_CHECKBOX_ID, f"label[for='{EXCLUDE_PRODUCT_CHECKBOX_ID}']",
-                "Exclude Product", True, click_timeout)
+                driver,
+                EXCLUDE_PRODUCT_CHECKBOX_ID,
+                f"label[for='{EXCLUDE_PRODUCT_CHECKBOX_ID}']",
+                "Exclude Product",
+                True,
+                click_timeout,
+            )
             logger.info("✅ All specified checkboxes handled.")
 
             wait.until(EC.element_to_be_clickable((By.ID, FETCH_RECORD_BUTTON_ID))).click()
             logger.info("✅ 'Fetch Record' button clicked.")
-            element = wait.until(
-                EC.element_to_be_clickable((By.ID, "txt-predictive-invalid-number")))
+            element = wait.until(EC.element_to_be_clickable((By.ID, "txt-predictive-invalid-number")))
             logger.warning("Invalid Numbers: %s", element.text)
 
             submit_btn = wait.until(EC.element_to_be_clickable((By.ID, SUBMIT_BUTTON_ID)))
@@ -1573,8 +1639,7 @@ class Volare:
             logger.error("❌ Failed during predictive assignment: {e}")
             return False
 
-    def _pd_fill_predictive_modal(self, driver, listingtype, campaign_name=None,
-                                  campaign_prefix="DPD 2-10"):
+    def _pd_fill_predictive_modal(self, driver, listingtype, campaign_name=None, campaign_prefix="DPD 2-10"):
         MODAL_ID = "mdl-predictive-campaign-creation"
         CAMPAIGN_NAME_INPUT_ID = "txt-campaign-name"
         CALLER_ID_SELECT_ID = "cmb-campaign-caller-id"
@@ -1587,25 +1652,23 @@ class Volare:
             if not campaign_name:
                 today_date = datetime.now().strftime("%d/%m/%Y")
                 campaign_name = f"{campaign_prefix} {listingtype} {today_date}"
-            name_input = wait.until(
-                EC.presence_of_element_located((By.ID, CAMPAIGN_NAME_INPUT_ID)))
+            name_input = wait.until(EC.presence_of_element_located((By.ID, CAMPAIGN_NAME_INPUT_ID)))
             name_input.clear()
             name_input.send_keys(campaign_name)
             logger.info(f"✅ Campaign Name set to: {campaign_name}")
 
             required_number_string = self.cfg["predictive"]["caller_id"]
             logger.info(f"ℹ️ Required Caller ID: {required_number_string}")
-            select_element = wait.until(
-                EC.presence_of_element_located((By.ID, CALLER_ID_SELECT_ID)))
+            select_element = wait.until(EC.presence_of_element_located((By.ID, CALLER_ID_SELECT_ID)))
             Select(select_element).select_by_visible_text(required_number_string)
             logger.info(f"✅ Selected Caller ID: {required_number_string} using Select class.")
 
-            radio_input = wait.until(EC.presence_of_element_located(
-                (By.ID, "advsearch_predictive_rad_assign_collector")))
+            radio_input = wait.until(
+                EC.presence_of_element_located((By.ID, "advsearch_predictive_rad_assign_collector"))
+            )
             ActionChains(driver).move_to_element(radio_input).click().perform()
 
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, "btn-predictive-proceed-creation"))).click()
+            wait.until(EC.element_to_be_clickable((By.ID, "btn-predictive-proceed-creation"))).click()
             return True
         except Exception as e:
             logger.warning(f"❌ Failed to fill predictive modal: {e}")
@@ -1623,7 +1686,8 @@ class Volare:
 
             try:
                 caller_id_select_elem = wait.until(
-                    EC.presence_of_element_located((By.ID, "predSettingCmb_CampCallerId")))
+                    EC.presence_of_element_located((By.ID, "predSettingCmb_CampCallerId"))
+                )
                 caller_id_select = Select(caller_id_select_elem)
                 selected_option = caller_id_select.first_selected_option.text.strip()
                 target_number = self.cfg["predictive"]["caller_id"]
@@ -1635,14 +1699,12 @@ class Volare:
             except Exception as e:
                 logger.warning(f"⚠️ Could not verify/set Caller ID: {e}")
 
-            radio_label = wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//label[@for='radCollector']")))
+            radio_label = wait.until(EC.element_to_be_clickable((By.XPATH, "//label[@for='radCollector']")))
             radio_label.click()
             logger.info("Radio button clicked. Waiting for dropdown...")
             time.sleep(0.5)
 
-            dropdown_btn = wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//button[@data-id='collectorddl']")))
+            dropdown_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[@data-id='collectorddl']")))
             time.sleep(0.3)
             actions.move_to_element(dropdown_btn).click().perform()
             logger.info("Dropdown opened")
@@ -1667,8 +1729,8 @@ class Volare:
             try:
                 while True:
                     delete_btns = driver.find_elements(
-                        By.CSS_SELECTOR,
-                        "#tbodyAutoRedialSetting .button-feels-delete-in-table")
+                        By.CSS_SELECTOR, "#tbodyAutoRedialSetting .button-feels-delete-in-table"
+                    )
                     if not delete_btns:
                         break
                     delete_btns[0].click()
@@ -1678,8 +1740,7 @@ class Volare:
                 logger.warning(f"⚠️ Error while removing redial settings: {e}")
 
             try:
-                status_select_elem = wait.until(
-                    EC.presence_of_element_located((By.ID, "predSetting_Statuses")))
+                status_select_elem = wait.until(EC.presence_of_element_located((By.ID, "predSetting_Statuses")))
                 status_select = Select(status_select_elem)
                 all_values = [opt.get_attribute("value") for opt in status_select.options]
                 exclude_statuses = [s.upper() for s in redial["exclude_statuses"]]
@@ -1717,14 +1778,15 @@ class Volare:
     def _pd_handle_success_modal(self, driver):
         wait = WebDriverWait(driver, 10)
         try:
-            wait.until(EC.visibility_of_element_located(
-                (By.XPATH, "//h2[@id='swal2-title' and text()='Successfully Updated!']")))
+            wait.until(
+                EC.visibility_of_element_located(
+                    (By.XPATH, "//h2[@id='swal2-title' and text()='Successfully Updated!']")
+                )
+            )
             campaign_element = driver.find_element(By.XPATH, "//div[@id='swal2-content']/p[2]")
             campaign_name = campaign_element.text
             logger.info(f"Update Confirmed for: {campaign_name}")
-            driver.find_element(
-                By.XPATH,
-                "//button[contains(@class, 'swal2-confirm') and text()='OK']").click()
+            driver.find_element(By.XPATH, "//button[contains(@class, 'swal2-confirm') and text()='OK']").click()
             return campaign_name
         except Exception as e:
             logger.warning(f"Error handling success modal: {e}")
@@ -1750,9 +1812,9 @@ class Volare:
                     time.sleep(5)
 
                 dropdown_container = WebDriverWait(driver, 15).until(
-                    EC.visibility_of_element_located((By.CSS_SELECTOR, "div.filter-option")))
-                dropdown_btn = dropdown_container.find_element(
-                    By.CSS_SELECTOR, "div.filter-option-inner-inner")
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, "div.filter-option"))
+                )
+                dropdown_btn = dropdown_container.find_element(By.CSS_SELECTOR, "div.filter-option-inner-inner")
                 dropdown_btn.click()
 
                 dropdown_text = self.cfg["predictive"]["dropdown_map"].get(listing_type)
@@ -1761,8 +1823,8 @@ class Volare:
                     return False, None
 
                 options = WebDriverWait(driver, 10).until(
-                    EC.presence_of_all_elements_located(
-                        (By.CSS_SELECTOR, "ul.dropdown-menu.inner.show li a span.text")))
+                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.dropdown-menu.inner.show li a span.text"))
+                )
                 for option in options:
                     if option.text.strip() == dropdown_text:
                         option.click()
@@ -1791,8 +1853,7 @@ class Volare:
 
     def _pd_reset_page_for_next(self, driver):
         driver.refresh()
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body")))
+        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         self._click_swal_ok_if_exists(driver)
         self._click_import_manager(driver)
 
@@ -1805,34 +1866,43 @@ class Volare:
             wait.until(EC.element_to_be_clickable((By.ID, "advanced-search-menu"))).click()
             logger.info("✅ Clicked 'Advanced Search' menu")
             time.sleep(2)
-            wait.until(EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, "button[data-id='select-client']"))).click()
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-id='select-client']"))).click()
             logger.info("✅ Opened client dropdown")
             time.sleep(2)
-            wait.until(EC.element_to_be_clickable((
-                By.XPATH,
-                "//div[contains(@class,'dropdown-menu') and contains(@class,'show')]"
-                "//ul[contains(@class,'dropdown-menu inner')]"
-                f"//span[@class='text' and text()='{existing_client}']"))).click()
+            wait.until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        "//div[contains(@class,'dropdown-menu') and contains(@class,'show')]"
+                        "//ul[contains(@class,'dropdown-menu inner')]"
+                        f"//span[@class='text' and text()='{existing_client}']",
+                    )
+                )
+            ).click()
             logger.info(f"✅ Selected '{existing_client}'")
             time.sleep(2)
             driver.find_element(By.TAG_NAME, "body").click()
             logger.info("✅ Clicked body to initialize batch dropdown")
             time.sleep(2)
-            wait.until(EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, "button[data-id='select-batchNo']"))).click()
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-id='select-batchNo']"))).click()
             logger.info("✅ Opened batch dropdown")
             time.sleep(5)
-            search_input = wait.until(EC.visibility_of_element_located(
-                (By.CSS_SELECTOR, "div.dropdown-menu.show .bs-searchbox input")))
+            search_input = wait.until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "div.dropdown-menu.show .bs-searchbox input"))
+            )
             search_input.send_keys(target_batch)
             logger.info(f"✅ Typed batch: {target_batch}")
             time.sleep(5)
-            wait.until(EC.element_to_be_clickable((
-                By.XPATH,
-                f"//div[contains(@class,'dropdown-menu') and contains(@class,'show')]"
-                f"//ul[contains(@class,'dropdown-menu inner')]"
-                f"//span[@class='text' and text()='{target_batch}']"))).click()
+            wait.until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        f"//div[contains(@class,'dropdown-menu') and contains(@class,'show')]"
+                        f"//ul[contains(@class,'dropdown-menu inner')]"
+                        f"//span[@class='text' and text()='{target_batch}']",
+                    )
+                )
+            ).click()
             logger.info(f"✅ Selected batch: {target_batch}")
             time.sleep(2)
             driver.find_element(By.TAG_NAME, "body").click()
@@ -2048,7 +2118,9 @@ class Volare:
                                     r.raise_for_status()
                                     jr = r.json()
                                     if not jr.get("status"):
-                                        logger.warning(f"⚠️ Page {page_num} returned False status: {jr.get('message', 'No message')}")
+                                        logger.warning(
+                                            f"⚠️ Page {page_num} returned False status: {jr.get('message', 'No message')}"
+                                        )
                                         if attempt < retries:
                                             await asyncio.sleep(1)
                                             continue
@@ -2056,7 +2128,9 @@ class Volare:
                                     data = jr.get("data", {})
                                     data_list = data.get("list", [])
                                     pagination = data.get("pagination", {})
-                                    logger.info(f"✅ [{name}] Successfully fetched page {page_num} ({len(data_list)} items)")
+                                    logger.info(
+                                        f"✅ [{name}] Successfully fetched page {page_num} ({len(data_list)} items)"
+                                    )
                                     return data_list, pagination
                                 except SessionExpiredError:
                                     raise
@@ -2073,7 +2147,9 @@ class Volare:
 
                     last_page = pag.get("last_page", 1)
                     total_items = pag.get("total", 0)
-                    logger.info(f"📊 [{name}] Pagination: Total Pages: {last_page}, Expected Total Items: {total_items}")
+                    logger.info(
+                        f"📊 [{name}] Pagination: Total Pages: {last_page}, Expected Total Items: {total_items}"
+                    )
 
                     if last_page > 1:
                         logger.info(f"⚡ Scheduling concurrent fetch for remaining {last_page - 1} pages...")
@@ -2085,7 +2161,9 @@ class Volare:
                 break
             except SessionExpiredError:
                 if report_attempt < 2:
-                    logger.warning(f"🔒 [{name}] Session expired. Refreshing and retrying entire report (Attempt {report_attempt + 1})...")
+                    logger.warning(
+                        f"🔒 [{name}] Session expired. Refreshing and retrying entire report (Attempt {report_attempt + 1})..."
+                    )
                     new_session = await asyncio.to_thread(self._api_login_with_retry)
                     if new_session:
                         session.cookies.update(new_session.cookies)
@@ -2102,8 +2180,7 @@ class Volare:
     def _rows_to_clean_df(self, results, config):
         """Build a renamed + cleaned DataFrame from raw result rows."""
         fields = list(config["col_mapping"].keys())
-        df = pd.DataFrame(
-            [self._extract_fields(r, fields) for r in results], columns=fields)
+        df = pd.DataFrame([self._extract_fields(r, fields) for r in results], columns=fields)
         if config["col_mapping"]:
             df.rename(columns=config["col_mapping"], inplace=True)
         return self._clean_report(df, config)
@@ -2139,10 +2216,12 @@ class Volare:
 
         if "Name" in df.columns:
             df["Name"] = (
-                df["Name"].astype(str)
+                df["Name"]
+                .astype(str)
                 .str.replace(r"[^a-zA-Z0-9\s]", "", regex=True)
                 .str.replace(r"\s+", " ", regex=True)
-                .str.strip())
+                .str.strip()
+            )
 
         if clean_map:
             for col, dtype in clean_map.items():
@@ -2155,6 +2234,7 @@ class Volare:
                 elif dtype == "datetime":
                     df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%Y-%m-%d %H:%M")
                 elif dtype == "datetime_my":
+
                     def convert_to_my(val):
                         try:
                             dt = pd.to_datetime(val, errors="coerce")
@@ -2166,8 +2246,10 @@ class Volare:
                             return dt_my.strftime("%Y-%m-%d %H:%M")
                         except Exception:
                             return "-"
+
                     df[col] = df[col].apply(convert_to_my)
                 elif dtype == "duration":
+
                     def format_duration(val):
                         if not val or pd.isna(val) or val == "-":
                             return "-"
@@ -2178,6 +2260,7 @@ class Volare:
                         elif len(parts) == 3:
                             return val
                         return val
+
                     df[col] = df[col].apply(format_duration)
                 elif dtype == "string":
                     df[col] = df[col].astype(str).replace(["nan", "None", ""], "-")
@@ -2209,7 +2292,9 @@ class Volare:
                     response.raise_for_status()
                     jr = response.json()
                     if not jr.get("status"):
-                        logger.warning(f"[_fetch_workstation_data] API returned false status on page {page}: {jr.get('message')}")
+                        logger.warning(
+                            f"[_fetch_workstation_data] API returned false status on page {page}: {jr.get('message')}"
+                        )
                         break
                     data_list = jr.get("data", {}).get("list", [])
                     if not data_list and page > 1:
@@ -2220,7 +2305,9 @@ class Volare:
                     success = True
                     break
                 except Exception as e:
-                    logger.error("[_fetch_workstation_data] Error at page {page} (Attempt {attempt}/{max_retries}): {e}")
+                    logger.error(
+                        "[_fetch_workstation_data] Error at page {page} (Attempt {attempt}/{max_retries}): {e}"
+                    )
                     if attempt < max_retries:
                         time.sleep(attempt * 2)
                     else:
@@ -2239,11 +2326,14 @@ class Volare:
         for c in ["loan_code", "status_display", "follow_up_date"]:
             if c not in work_df.columns:
                 work_df[c] = "-"
-        work_df.rename(columns={
-            "loan_code": "Loan ID",
-            "status_display": "PTP Status",
-            "follow_up_date": "Follow Up Date",
-        }, inplace=True)
+        work_df.rename(
+            columns={
+                "loan_code": "Loan ID",
+                "status_display": "PTP Status",
+                "follow_up_date": "Follow Up Date",
+            },
+            inplace=True,
+        )
         return work_df[["Loan ID", "PTP Status", "Follow Up Date"]]
 
     def _export_report(self, df, config, name, session=None):
@@ -2322,10 +2412,16 @@ class Volare:
                 new_df_all = filtered_df[new_mask].copy()
                 others_df_all = filtered_df[~new_mask].copy()
                 weightage = self.cfg["download"]["arapay_weightage"]
-                new_arapay = (new_df_all.sample(frac=weightage) if not new_df_all.empty
-                              else pd.DataFrame(columns=new_df_all.columns))
-                others_arapay = (others_df_all.sample(frac=weightage) if not others_df_all.empty
-                                 else pd.DataFrame(columns=others_df_all.columns))
+                new_arapay = (
+                    new_df_all.sample(frac=weightage)
+                    if not new_df_all.empty
+                    else pd.DataFrame(columns=new_df_all.columns)
+                )
+                others_arapay = (
+                    others_df_all.sample(frac=weightage)
+                    if not others_df_all.empty
+                    else pd.DataFrame(columns=others_df_all.columns)
+                )
                 arapay_df = pd.concat([new_arapay, others_arapay])
                 new_df = new_df_all.drop(new_arapay.index)
                 others_df = others_df_all.drop(others_arapay.index)
@@ -2381,21 +2477,25 @@ class Volare:
 
                         try:
                             follow_up_dt = pd.to_datetime(
-                                filtered_df["Follow Up Date"],
-                                format="%Y-%m-%d %H:%M:%S", errors="coerce")
+                                filtered_df["Follow Up Date"], format="%Y-%m-%d %H:%M:%S", errors="coerce"
+                            )
                             today_dt = pd.to_datetime(_get_today())
                             ptp_mask = filtered_df["PTP Status"].astype(str).str.upper() == "PTP"
                             future_mask = follow_up_dt > today_dt
                             drop_mask = ptp_mask & future_mask
                             num_dropped = drop_mask.sum()
                             if num_dropped > 0:
-                                logger.info(f"[loan_brackets] Dropping {num_dropped} rows for bracket '{bracket_name}' (Status: PTP, Future Follow-up)")
+                                logger.info(
+                                    f"[loan_brackets] Dropping {num_dropped} rows for bracket '{bracket_name}' (Status: PTP, Future Follow-up)"
+                                )
                                 filtered_df = filtered_df[~drop_mask].copy()
                         except Exception as e:
                             logger.warning(f"[loan_brackets] Failed to apply PTP/Follow-up filter: {e}")
 
                         joined_filepath = os.path.join(folder_path, f"{today_str}_{bracket_name}_Joined.xlsx")
-                        logger.info(f"[loan_brackets] Writing joined 2_to_10 dataset ({len(filtered_df)} rows) -> {joined_filepath}")
+                        logger.info(
+                            f"[loan_brackets] Writing joined 2_to_10 dataset ({len(filtered_df)} rows) -> {joined_filepath}"
+                        )
                         try:
                             filtered_df.to_excel(joined_filepath, index=False)
                             logger.info(f"[loan_brackets] Saved: {joined_filepath}")
@@ -2413,7 +2513,9 @@ class Volare:
                     filtered_df.to_excel(filepath, index=False)
                 else:
                     bracket_filepath = os.path.join(folder_path, f"{today_str}_{bracket_name}.xlsx")
-                    logger.info(f"[loan_brackets] Writing full DPD 10-30 dataset ({len(filtered_df)} rows) -> {bracket_filepath}")
+                    logger.info(
+                        f"[loan_brackets] Writing full DPD 10-30 dataset ({len(filtered_df)} rows) -> {bracket_filepath}"
+                    )
                     try:
                         filtered_df.to_excel(bracket_filepath, index=False)
                         logger.info(f"[loan_brackets] Saved: {bracket_filepath}")
@@ -2452,8 +2554,7 @@ class Volare:
             if not admin or admin_label in ["-", "nan", "None", ""]:
                 admin_name_clean = "Unassigned"
             else:
-                admin_name_clean = "".join(
-                    c if c.isalnum() or c in " _-" else "_" for c in admin_label).strip()
+                admin_name_clean = "".join(c if c.isalnum() or c in " _-" else "_" for c in admin_label).strip()
             admin_df = filtered_df[filtered_df["Collector Admin"] == admin].copy()
             if admin_df.empty:
                 continue
@@ -2465,7 +2566,9 @@ class Volare:
                 admin_count += 1
             except Exception as e:
                 logger.error("[loan_brackets] Failed to save '{filepath}': {e}")
-        logger.info(f"[loan_brackets] Split bracket '{bracket_name}' into {file_count} files for {admin_count} Collector Admins")
+        logger.info(
+            f"[loan_brackets] Split bracket '{bracket_name}' into {file_count} files for {admin_count} Collector Admins"
+        )
 
     def _export_broadcast_dpd(self, df, folder_path, today_str):
         logger.info("[broadcast_dpd] Entering broadcast_dpd mode")
