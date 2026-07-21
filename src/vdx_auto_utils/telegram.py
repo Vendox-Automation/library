@@ -1,4 +1,5 @@
 import calendar as _cal
+import time
 import requests
 import logging
 import os
@@ -23,6 +24,38 @@ class TelegramBot:
         """
         self.api_token = api_token
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
+
+        # One pooled, keep-alive session reused for every API call. Without this,
+        # each request opened a fresh TCP+TLS handshake (~0.5–1s of latency per
+        # call on high-RTT links) — the main cause of laggy buttons and slow
+        # broadcasts. pool_maxsize is generous so concurrent worker threads
+        # don't block on a shared connection.
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=20, pool_maxsize=20)
+        self.session.mount("https://", adapter)
+
+    def _request(self, method: str, endpoint: str, **kwargs):
+        """Send via the pooled session, honoring Telegram's 429 retry_after.
+
+        Returns the final ``requests.Response`` (callers keep doing their own
+        ``raise_for_status`` / ``.json()``). Raises on network errors, same as
+        the bare ``requests`` calls did before.
+        """
+        kwargs.setdefault("timeout", 10)
+        resp = None
+        for _ in range(3):
+            resp = self.session.request(method, endpoint, **kwargs)
+            if resp.status_code == 429:
+                try:
+                    retry_after = int(
+                        resp.json().get("parameters", {}).get("retry_after", 1)
+                    )
+                except Exception:
+                    retry_after = 1
+                time.sleep(min(retry_after, 30))
+                continue
+            return resp
+        return resp
 
     def send_message(
         self,
@@ -63,7 +96,7 @@ class TelegramBot:
             payload["reply_markup"] = json.dumps({"inline_keyboard": buttons})
 
         try:
-            response = requests.post(endpoint, data=payload, timeout=10)
+            response = self._request("POST", endpoint, data=payload, timeout=10)
             response.raise_for_status()
             logger.info(f"Message sent to {group_id}")
             return response.json()
@@ -122,8 +155,8 @@ class TelegramBot:
         try:
             with open(file_path, "rb") as f:
                 files = {file_key: f}
-                response = requests.post(
-                    endpoint, data=payload, files=files, timeout=60
+                response = self._request(
+                    "POST", endpoint, data=payload, files=files, timeout=60
                 )
                 response.raise_for_status()
 
@@ -145,8 +178,8 @@ class TelegramBot:
         endpoint = f"{self.base_url}/getUpdates"
         params = {"timeout": timeout, "offset": offset}
         try:
-            response = requests.get(
-                endpoint, params=params, timeout=timeout + 5
+            response = self._request(
+                "GET", endpoint, params=params, timeout=timeout + 5
             )  # nosec B113
             return response.json().get("result", [])
         except Exception as e:
@@ -172,7 +205,7 @@ class TelegramBot:
             payload["show_alert"] = show_alert
 
         try:
-            requests.post(endpoint, data=payload, timeout=10)
+            self._request("POST", endpoint, data=payload, timeout=10)
         except Exception as e:
             logger.error(f"Error answering callback query: {e}")
 
@@ -279,7 +312,7 @@ class TelegramBot:
         if buttons is not None:
             payload["reply_markup"] = json.dumps({"inline_keyboard": buttons})
         try:
-            response = requests.post(endpoint, data=payload, timeout=10)
+            response = self._request("POST", endpoint, data=payload, timeout=10)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -309,7 +342,7 @@ class TelegramBot:
             "reply_markup": json.dumps({"inline_keyboard": buttons}),
         }
         try:
-            response = requests.post(endpoint, data=payload, timeout=10)
+            response = self._request("POST", endpoint, data=payload, timeout=10)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -526,7 +559,7 @@ class TelegramBot:
             "disable_notification": silent,
         }
         try:
-            response = requests.post(endpoint, data=payload, timeout=10)
+            response = self._request("POST", endpoint, data=payload, timeout=10)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -555,7 +588,9 @@ class TelegramBot:
         """
         endpoint = f"{self.base_url}/setMyCommands"
         try:
-            response = requests.post(endpoint, json={"commands": commands}, timeout=10)
+            response = self._request(
+                "POST", endpoint, json={"commands": commands}, timeout=10
+            )
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -573,7 +608,7 @@ class TelegramBot:
         endpoint = f"{self.base_url}/getChatAdministrators"
         payload = {"chat_id": group_id}
         try:
-            response = requests.post(endpoint, data=payload, timeout=10)
+            response = self._request("POST", endpoint, data=payload, timeout=10)
             response.raise_for_status()
             data = response.json()
 
