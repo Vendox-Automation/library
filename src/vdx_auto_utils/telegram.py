@@ -42,9 +42,15 @@ class TelegramBot:
         the bare ``requests`` calls did before.
         """
         kwargs.setdefault("timeout", 10)
+        # Log the API method name only — never the endpoint, which contains the token.
+        api_method = endpoint.rsplit("/", 1)[-1]
         resp = None
         for _ in range(3):
+            start = time.monotonic()
             resp = self.session.request(method, endpoint, **kwargs)
+            elapsed = time.monotonic() - start
+            if elapsed > 3.0:
+                logger.warning("Slow Telegram call: %s took %.1fs", api_method, elapsed)
             if resp.status_code == 429:
                 try:
                     retry_after = int(
@@ -52,6 +58,11 @@ class TelegramBot:
                     )
                 except Exception:
                     retry_after = 1
+                logger.warning(
+                    "Telegram 429 rate limit on %s — sleeping %ss",
+                    api_method,
+                    retry_after,
+                )
                 time.sleep(min(retry_after, 30))
                 continue
             return resp
@@ -181,7 +192,17 @@ class TelegramBot:
             response = self._request(
                 "GET", endpoint, params=params, timeout=timeout + 5
             )  # nosec B113
-            return response.json().get("result", [])
+            data = response.json()
+            if not data.get("ok") and data.get("error_code") == 409:
+                # Two processes polling the same token — Telegram splits updates
+                # between them, causing dropped/laggy button responses.
+                logger.warning(
+                    "getUpdates 409 Conflict: another instance is polling this "
+                    "bot token (duplicate process or a webhook is set). "
+                    "Ensure only ONE instance runs."
+                )
+                time.sleep(3)
+            return data.get("result", [])
         except Exception as e:
             logger.error(f"Error fetching updates: {e}")
             return []
