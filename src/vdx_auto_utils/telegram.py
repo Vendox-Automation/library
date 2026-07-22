@@ -1,5 +1,6 @@
 import calendar as _cal
 import time
+import threading
 import requests
 import logging
 import os
@@ -10,17 +11,50 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class _RateLimiter:
+    """Thread-safe token bucket. Caps outbound sends so bursts (e.g. a broadcast
+    to 100+ groups) don't trip Telegram's global flood limit — which otherwise
+    throttles EVERY call on the token, including button acks (answerCallbackQuery).
+    """
+
+    def __init__(self, rate_per_sec: float):
+        self.rate = rate_per_sec
+        self.capacity = rate_per_sec
+        self.tokens = rate_per_sec
+        self.timestamp = time.monotonic()
+        self.lock = threading.Lock()
+
+    def acquire(self) -> None:
+        with self.lock:
+            now = time.monotonic()
+            self.tokens = min(
+                self.capacity, self.tokens + (now - self.timestamp) * self.rate
+            )
+            self.timestamp = now
+            if self.tokens < 1:
+                sleep_for = (1 - self.tokens) / self.rate
+                time.sleep(sleep_for)
+                self.tokens = 0
+                self.timestamp = time.monotonic()
+            else:
+                self.tokens -= 1
+
+
 class TelegramBot:
     """
     A wrapper for the Telegram Bot API to send messages to Groups and Topics.
     """
 
-    def __init__(self, api_token: str):
+    def __init__(self, api_token: str, send_rate_per_sec: float = 25):
         """
         Initialize the bot with your API Token.
 
         Args:
             api_token (str): The Telegram Bot API Token from @BotFather.
+            send_rate_per_sec (float): Max outbound send* calls per second.
+                Caps bursts (e.g. broadcasts) to stay under Telegram's ~30 msg/s
+                global flood limit. Lower it if you still see 429s; raise it for
+                low-traffic bots that never broadcast. Default 25.
         """
         self.api_token = api_token
         self.base_url = f"https://api.telegram.org/bot{self.api_token}"
@@ -34,6 +68,11 @@ class TelegramBot:
         adapter = requests.adapters.HTTPAdapter(pool_connections=20, pool_maxsize=20)
         self.session.mount("https://", adapter)
 
+        # Cap outbound *sends* to stay under Telegram's ~30 msg/s global limit.
+        # Only send* methods are throttled — answerCallbackQuery / editMessage /
+        # getUpdates are exempt so buttons stay instant even during a broadcast.
+        self._send_limiter = _RateLimiter(rate_per_sec=send_rate_per_sec)
+
     def _request(self, method: str, endpoint: str, **kwargs):
         """Send via the pooled session, honoring Telegram's 429 retry_after.
 
@@ -44,13 +83,22 @@ class TelegramBot:
         kwargs.setdefault("timeout", 10)
         # Log the API method name only — never the endpoint, which contains the token.
         api_method = endpoint.rsplit("/", 1)[-1]
+        # Throttle only content sends (the flood source); leave control calls free.
+        if api_method.startswith("send"):
+            self._send_limiter.acquire()
         resp = None
         for _ in range(3):
             start = time.monotonic()
             resp = self.session.request(method, endpoint, **kwargs)
             elapsed = time.monotonic() - start
-            if elapsed > 3.0:
-                logger.warning("Slow Telegram call: %s took %.1fs", api_method, elapsed)
+            # getUpdates is a long-poll — being "slow" (up to timeout) is normal.
+            if elapsed > 3.0 and api_method != "getUpdates":
+                logger.warning(
+                    "Slow Telegram call: %s took %.1fs (HTTP %s)",
+                    api_method,
+                    elapsed,
+                    resp.status_code,
+                )
             if resp.status_code == 429:
                 try:
                     retry_after = int(
