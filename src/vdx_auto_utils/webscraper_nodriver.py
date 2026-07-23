@@ -325,9 +325,7 @@ class StealthScraper:
         """Return an element attribute value via JS, or None."""
         if not element:
             return None
-        return self._run(
-            element.apply(f"(e) => e.getAttribute({json.dumps(name)})")
-        )
+        return self._run(element.apply(f"(e) => e.getAttribute({json.dumps(name)})"))
 
     def is_visible(self, element) -> bool:
         """True if the element is currently rendered."""
