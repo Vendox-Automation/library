@@ -25,6 +25,7 @@ import time
 from pathlib import Path
 
 import nodriver as uc
+from nodriver import cdp
 
 logger = logging.getLogger(__name__)
 
@@ -323,9 +324,101 @@ class StealthScraper:
 
     def get_attribute(self, element, name: str):
         """Return an element attribute value via JS, or None."""
+        return self.apply_to(element, f"(e) => e.getAttribute({json.dumps(name)})")
+
+    def apply_to(self, element, js_function: str):
+        """
+        Run a JS function against an element and return its result. ``js_function``
+        is a string like ``"(e) => e.someProp"`` — the element is passed as the sole
+        argument. Sync escape hatch for callers holding a raw nodriver Element who
+        can't await its (async) ``.apply()`` themselves.
+        """
         if not element:
             return None
-        return self._run(element.apply(f"(e) => e.getAttribute({json.dumps(name)})"))
+        return self._run(element.apply(js_function))
+
+    def scroll_into_view(self, element):
+        """Scroll an element into the viewport."""
+        if not element:
+            return
+        self._run(element.scroll_into_view())
+
+    def mouse_click(self, x: float, y: float, move_first: bool = True):
+        """
+        Dispatch a real synthetic mouse click at absolute page coordinates. Unlike
+        a JS ``.click()``, this reaches content inside cross-origin iframes (e.g. a
+        Cloudflare Turnstile checkbox), since CDP delivers it as a real input event.
+
+        With ``move_first`` (default), the cursor is moved to the target over a
+        short interpolated path before clicking — a teleported click with no
+        preceding movement is a bot signal some widgets (e.g. Turnstile) key off.
+        """
+        if move_first:
+            self._run(self.tab.mouse_move(x, y, steps=10))
+        self._run(self.tab.mouse_click(x, y))
+
+    async def _apierce_find_all(self, tag_name: str, attr_contains: str = None):
+        """
+        Walk the live DOM via CDP with shadow roots pierced — this sees through
+        CLOSED shadow roots (e.g. declarative ``<template shadowrootmode="closed">``)
+        that normal CSS/xpath queries (``find``/``find_all``) cannot. Matches by tag
+        name and, if given, a substring anywhere in the node's attribute values
+        (e.g. an iframe's ``src``). Returns raw CDP DOM nodes.
+        """
+        tag_name = tag_name.lower()
+        await self.tab.send(cdp.dom.enable())
+        doc = await self.tab.send(cdp.dom.get_document(depth=-1, pierce=True))
+        found = []
+
+        def walk(node):
+            if (node.node_name or "").lower() == tag_name:
+                attrs = node.attributes or []
+                if not attr_contains or any(attr_contains in v for v in attrs[1::2]):
+                    found.append(node)
+            for root in node.shadow_roots or []:
+                walk(root)
+            for child in node.children or []:
+                walk(child)
+            if node.content_document:
+                walk(node.content_document)
+
+        walk(doc)
+        return found
+
+    def find_pierced(
+        self, tag_name: str, attr_contains: str = None, timeout: float = 10
+    ):
+        """
+        Locate an element even inside a CLOSED shadow root, by tag name and an
+        optional attribute-value substring (e.g. ``find_pierced("iframe",
+        "challenges.cloudflare.com")``). Returns its on-screen rect as
+        ``{"x", "y", "width", "height"}`` (page/viewport CSS-pixel coordinates,
+        suitable for ``mouse_click``), or None if not found within timeout.
+        """
+
+        async def _search():
+            end = time.monotonic() + timeout
+            while True:
+                nodes = await self._apierce_find_all(tag_name, attr_contains)
+                if nodes:
+                    bm = await self.tab.send(
+                        cdp.dom.get_box_model(backend_node_id=nodes[0].backend_node_id)
+                    )
+                    xs, ys = bm.content[0::2], bm.content[1::2]
+                    return {
+                        "x": min(xs),
+                        "y": min(ys),
+                        "width": max(xs) - min(xs),
+                        "height": max(ys) - min(ys),
+                    }
+                if time.monotonic() >= end:
+                    return None
+                await asyncio.sleep(0.3)
+
+        rect = self._run(_search())
+        if rect is None:
+            logger.error(f"Pierced search found no <{tag_name}> within {timeout}s")
+        return rect
 
     def is_visible(self, element) -> bool:
         """True if the element is currently rendered."""
@@ -421,6 +514,12 @@ class StealthScraper:
         """Stop the browser and close the event loop."""
         try:
             self.browser.stop()
+            # browser.stop() only *schedules* its cleanup coroutine (a fire-and-forget
+            # create_task) rather than running it — give the loop one more beat so
+            # that task actually executes before we close the loop out from under it.
+            # Skipping this leaves the connection's background reader task dangling,
+            # which then spins forever retrying recv() on the now-dead websocket.
+            self._run(asyncio.sleep(0.3))
         except Exception as e:
             logger.warning(f"Browser stop failed: {e}")
         finally:
