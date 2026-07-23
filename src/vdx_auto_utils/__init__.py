@@ -27,6 +27,7 @@ from .service_account_manager import ServiceAccountManager
 from .telegram import TelegramBot
 from .uploader import GoogleSheetUploader
 from .webscraper import Scraper
+from .webscraper_nodriver import StealthScraper
 
 __all__ = [
     "CSVFilter",
@@ -44,6 +45,7 @@ __all__ = [
     "GoogleSheetUploader",
     "TelegramBot",
     "Scraper",
+    "StealthScraper",
     "GoogleSheetsListener",
     "Database",
     "ServiceAccountManager",

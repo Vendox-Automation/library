@@ -23,6 +23,7 @@ dependencies = [
     "oauth2client",
     "selenium",
     "webdriver-manager",
+    "nodriver>=0.50,<0.51",
     "requests",
     "httpx",
     "psycopg2",
